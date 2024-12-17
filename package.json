@@ -1,9 +1,15 @@
 {
   "name": "multi-vendor-system",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:publisher": "node src/examples/testPublisher.js",
+    "start:consumer": "node src/examples/testConsumer.js",
+    "dev:publisher": "nodemon src/examples/testPublisher.js",
+    "dev:consumer": "nodemon src/examples/testConsumer.js"
   },
   "author": "",
   "license": "ISC",
@@ -11,7 +17,13 @@
   "dependencies": {
     "amqplib": "^0.10.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "nodemailer": "^6.9.7",
+    "joi": "^17.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
