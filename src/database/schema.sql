@@ -1,3 +1,9 @@
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
 -- Users Table
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
@@ -11,7 +17,7 @@ CREATE TABLE users (
 -- Products Table
 CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
-    seller_id INTEGER REFERENCES users(user_id),
+    seller_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
@@ -24,7 +30,7 @@ CREATE TABLE products (
 -- Orders Table
 CREATE TABLE orders (
     order_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id),
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     total_amount DECIMAL(10,2) NOT NULL,
     status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'cancelled')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -34,8 +40,8 @@ CREATE TABLE orders (
 -- Order Items Table
 CREATE TABLE order_items (
     order_item_id SERIAL PRIMARY KEY,
-    order_id INTEGER REFERENCES orders(order_id),
-    product_id INTEGER REFERENCES products(product_id),
+    order_id INTEGER REFERENCES orders(order_id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(product_id) ON DELETE SET NULL,
     quantity INTEGER NOT NULL,
     price_at_time DECIMAL(10,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

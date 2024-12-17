@@ -54,29 +54,14 @@ class OrderService {
             await client.query('COMMIT');
 
             // Get user email for notification
-            const userResult = await db.query('SELECT email FROM users WHERE user_id = $1', [userId]);
-            const userEmail = userResult.rows[0]?.email;
+            const userResult = await client.query(
+                'SELECT email FROM users WHERE user_id = $1',
+                [userId]
+            );
+            const userEmail = userResult.rows[0].email;
 
-            // Publish order event
+            // Publish notification event
             if (rabbitmq.channel) {
-                const orderEvent = {
-                    type: 'order.created',
-                    data: {
-                        orderId: order.order_id,
-                        userId: userId,
-                        totalAmount: totalAmount,
-                        email: userEmail,
-                        items: items
-                    }
-                };
-
-                rabbitmq.channel.publish(
-                    QUEUES.ORDER_EVENTS.exchange,
-                    QUEUES.ORDER_EVENTS.routingKey,
-                    Buffer.from(JSON.stringify(orderEvent))
-                );
-
-                // Publish notification event
                 const notificationEvent = {
                     type: 'notification.email',
                     data: {
@@ -94,7 +79,7 @@ class OrderService {
                 );
             }
 
-            return order;
+            return this.formatOrderResult([{...order, items}]);
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;
@@ -104,30 +89,42 @@ class OrderService {
     }
 
     async getOrder(orderId, userId) {
-        const query = `
-            SELECT o.*, oi.*, p.title as product_title
-            FROM orders o
-            JOIN order_items oi ON o.order_id = oi.order_id
-            JOIN products p ON oi.product_id = p.product_id
-            WHERE o.order_id = $1 AND o.user_id = $2
-        `;
-        
-        const result = await db.query(query, [orderId, userId]);
-        return this.formatOrderResult(result.rows);
+        const client = await db.pool.connect();
+        try {
+            const query = `
+                SELECT o.*, oi.*, p.title as product_title, u.email as user_email
+                FROM orders o
+                JOIN order_items oi ON o.order_id = oi.order_id
+                JOIN products p ON oi.product_id = p.product_id
+                JOIN users u ON o.user_id = u.user_id
+                WHERE o.order_id = $1 AND o.user_id = $2
+            `;
+            
+            const result = await client.query(query, [orderId, userId]);
+            return this.formatOrderResult(result.rows);
+        } finally {
+            client.release();
+        }
     }
 
     async getUserOrders(userId) {
-        const query = `
-            SELECT o.*, oi.*, p.title as product_title
-            FROM orders o
-            JOIN order_items oi ON o.order_id = oi.order_id
-            JOIN products p ON oi.product_id = p.product_id
-            WHERE o.user_id = $1
-            ORDER BY o.created_at DESC
-        `;
-        
-        const result = await db.query(query, [userId]);
-        return this.formatOrderResult(result.rows);
+        const client = await db.pool.connect();
+        try {
+            const query = `
+                SELECT o.*, oi.*, p.title as product_title, u.email as user_email
+                FROM orders o
+                JOIN order_items oi ON o.order_id = oi.order_id
+                JOIN products p ON oi.product_id = p.product_id
+                JOIN users u ON o.user_id = u.user_id
+                WHERE o.user_id = $1
+                ORDER BY o.created_at DESC
+            `;
+            
+            const result = await client.query(query, [userId]);
+            return this.formatOrderResult(result.rows);
+        } finally {
+            client.release();
+        }
     }
 
     async updateOrder(orderId, userId, updates) {
@@ -138,7 +135,7 @@ class OrderService {
 
             // Check if order exists and belongs to user
             const orderResult = await client.query(
-                'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+                'SELECT o.*, u.email as user_email FROM orders o JOIN users u ON o.user_id = u.user_id WHERE o.order_id = $1 AND o.user_id = $2',
                 [orderId, userId]
             );
 
@@ -199,7 +196,7 @@ class OrderService {
 
             // Check if order exists and belongs to user
             const orderResult = await client.query(
-                'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+                'SELECT o.*, u.email as user_email FROM orders o JOIN users u ON o.user_id = u.user_id WHERE o.order_id = $1 AND o.user_id = $2',
                 [orderId, userId]
             );
 
@@ -225,10 +222,7 @@ class OrderService {
                 );
             }
 
-            // Delete order items
-            await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-            
-            // Delete order
+            // Delete order items and order (cascade will handle this)
             await client.query('DELETE FROM orders WHERE order_id = $1', [orderId]);
 
             await client.query('COMMIT');
@@ -273,16 +267,19 @@ class OrderService {
                     totalAmount: row.total_amount,
                     status: row.status,
                     createdAt: row.created_at,
+                    userEmail: row.user_email,
                     items: []
                 };
             }
 
-            orders[row.order_id].items.push({
-                productId: row.product_id,
-                title: row.product_title,
-                quantity: row.quantity,
-                priceAtTime: row.price_at_time
-            });
+            if (row.product_id) {
+                orders[row.order_id].items.push({
+                    productId: row.product_id,
+                    title: row.product_title,
+                    quantity: row.quantity,
+                    priceAtTime: row.price_at_time
+                });
+            }
         });
 
         return Object.values(orders);
