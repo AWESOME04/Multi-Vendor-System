@@ -3,9 +3,6 @@
 ## System Overview
 This is a microservices-based multi-vendor e-commerce platform that uses PostgreSQL for data storage and RabbitMQ for message queuing. The system is designed to handle multiple vendors, products, orders, and notifications efficiently and scalably.
 
-## Database Architecture
-Database URL: postgresql://neondb_owner:1aRuFTwPC5nY@ep-young-bar-a5ymhgm2.us-east-2.aws.neon.tech/neondb
-
 ### Core Tables
 1. Users Table
    - user_id (Primary Key)
