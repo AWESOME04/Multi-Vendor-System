@@ -49,10 +49,25 @@ router.put('/:id', authenticate, async (req, res) => {
 // Delete order
 router.delete('/:id', authenticate, async (req, res) => {
     try {
-        const result = await orderService.deleteOrder(req.params.id, req.user.userId);
-        res.json(result);
+        const orderId = req.params.id;
+        const userId = req.user.id;
+
+        // First check if order exists and belongs to user
+        const order = await orderService.getOrder(req.params.id, req.user.userId);
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found or cannot be deleted' });
+        }
+
+        // Delete order items first
+        await orderService.deleteOrderItems(orderId);
+
+        // Then delete the order
+        const result = await orderService.deleteOrder(orderId, userId);
+        res.json({ message: 'Order deleted successfully' });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error deleting order:', error);
+        res.status(500).json({ message: 'Error deleting order' });
     }
 });
 
