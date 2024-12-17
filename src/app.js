@@ -24,7 +24,7 @@ async function startServer() {
 
         // Basic root route
         app.get('/', (req, res) => {
-            res.json({ message: 'Multi-Vendor System API' });
+            res.json({ message: 'This is the entry point for the Multi-Vendor System API' });
         });
 
         // Error handling middleware
