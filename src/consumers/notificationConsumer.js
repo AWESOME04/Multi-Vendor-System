@@ -1,4 +1,5 @@
 const { QUEUES } = require('../config/constants');
+const notificationService = require('../services/notificationService');
 
 class NotificationConsumer {
     constructor(channel) {
@@ -13,19 +14,27 @@ class NotificationConsumer {
                     const content = JSON.parse(message.content.toString());
                     console.log('Received notification event:', content);
 
-                    switch(content.event) {
-                        case 'notification.email':
-                            await this.handleEmailNotification(content.data);
-                            break;
-                        case 'notification.sms':
-                            await this.handleSMSNotification(content.data);
-                            break;
-                        default:
-                            console.warn('Unknown notification event type:', content.event);
+                    try {
+                        switch(content.type) {
+                            case 'notification.email':
+                                await this.handleEmailNotification(content.data);
+                                break;
+                            case 'notification.sms':
+                                await this.handleSMSNotification(content.data);
+                                break;
+                            case 'notification.push':
+                                await this.handlePushNotification(content.data);
+                                break;
+                            default:
+                                console.warn('Unknown notification type:', content.type);
+                        }
+                        // Acknowledge the message only if processing was successful
+                        this.channel.ack(message);
+                    } catch (error) {
+                        console.error('Error processing notification:', error);
+                        // Reject the message and requeue it
+                        this.channel.nack(message, false, true);
                     }
-
-                    // Acknowledge the message
-                    this.channel.ack(message);
                 },
                 { noAck: false }
             );
@@ -38,13 +47,12 @@ class NotificationConsumer {
 
     async handleEmailNotification(data) {
         try {
-            // TODO: Integrate with email service (SendGrid, Mailgun, or Amazon SES)
-            console.log('Processing email notification:', {
+            await notificationService.sendNotification('email', {
                 to: data.to,
                 subject: data.subject,
                 body: data.body
             });
-            // Add actual email sending logic here
+            console.log('Email notification sent successfully');
         } catch (error) {
             console.error('Error handling email notification:', error);
             throw error;
@@ -53,14 +61,27 @@ class NotificationConsumer {
 
     async handleSMSNotification(data) {
         try {
-            // TODO: Integrate with SMS service
-            console.log('Processing SMS notification:', {
-                to: data.to,
+            await notificationService.sendNotification('sms', {
+                phoneNumber: data.phoneNumber,
                 message: data.message
             });
-            // Add actual SMS sending logic here
+            console.log('SMS notification sent successfully');
         } catch (error) {
             console.error('Error handling SMS notification:', error);
+            throw error;
+        }
+    }
+
+    async handlePushNotification(data) {
+        try {
+            await notificationService.sendNotification('push', {
+                userId: data.userId,
+                title: data.title,
+                message: data.message
+            });
+            console.log('Push notification sent successfully');
+        } catch (error) {
+            console.error('Error handling push notification:', error);
             throw error;
         }
     }
