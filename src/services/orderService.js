@@ -130,6 +130,137 @@ class OrderService {
         return this.formatOrderResult(result.rows);
     }
 
+    async updateOrder(orderId, userId, updates) {
+        const client = await db.pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+
+            // Check if order exists and belongs to user
+            const orderResult = await client.query(
+                'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+                [orderId, userId]
+            );
+
+            const order = orderResult.rows[0];
+            if (!order) {
+                throw new Error('Order not found or unauthorized');
+            }
+
+            if (order.status === 'completed') {
+                throw new Error('Cannot update completed order');
+            }
+
+            // Update order status
+            const updatedOrder = await client.query(
+                `UPDATE orders 
+                SET status = COALESCE($1, status),
+                updated_at = CURRENT_TIMESTAMP
+                WHERE order_id = $2
+                RETURNING *`,
+                [updates.status, orderId]
+            );
+
+            await client.query('COMMIT');
+
+            // Publish notification event
+            if (rabbitmq.channel) {
+                const notificationEvent = {
+                    type: 'notification.email',
+                    data: {
+                        to: order.user_email,
+                        subject: 'Order Status Updated',
+                        body: `Your order #${orderId} status has been updated to ${updates.status}.`,
+                        metadata: { orderId }
+                    }
+                };
+
+                rabbitmq.channel.publish(
+                    QUEUES.NOTIFICATION_EVENTS.exchange,
+                    QUEUES.NOTIFICATION_EVENTS.routingKey,
+                    Buffer.from(JSON.stringify(notificationEvent))
+                );
+            }
+
+            return updatedOrder.rows[0];
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async deleteOrder(orderId, userId) {
+        const client = await db.pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+
+            // Check if order exists and belongs to user
+            const orderResult = await client.query(
+                'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+                [orderId, userId]
+            );
+
+            const order = orderResult.rows[0];
+            if (!order) {
+                throw new Error('Order not found or unauthorized');
+            }
+
+            if (order.status !== 'pending') {
+                throw new Error('Can only delete pending orders');
+            }
+
+            // Return items to inventory
+            const orderItems = await client.query(
+                'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+                [orderId]
+            );
+
+            for (const item of orderItems.rows) {
+                await client.query(
+                    'UPDATE products SET stock_quantity = stock_quantity + $1 WHERE product_id = $2',
+                    [item.quantity, item.product_id]
+                );
+            }
+
+            // Delete order items
+            await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+            
+            // Delete order
+            await client.query('DELETE FROM orders WHERE order_id = $1', [orderId]);
+
+            await client.query('COMMIT');
+
+            // Publish notification event
+            if (rabbitmq.channel) {
+                const notificationEvent = {
+                    type: 'notification.email',
+                    data: {
+                        to: order.user_email,
+                        subject: 'Order Cancelled',
+                        body: `Your order #${orderId} has been cancelled.`,
+                        metadata: { orderId }
+                    }
+                };
+
+                rabbitmq.channel.publish(
+                    QUEUES.NOTIFICATION_EVENTS.exchange,
+                    QUEUES.NOTIFICATION_EVENTS.routingKey,
+                    Buffer.from(JSON.stringify(notificationEvent))
+                );
+            }
+
+            return { message: 'Order deleted successfully' };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
     formatOrderResult(rows) {
         if (rows.length === 0) return null;
 

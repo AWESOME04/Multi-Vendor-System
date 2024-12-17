@@ -36,4 +36,24 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 });
 
+// Update order status
+router.put('/:id', authenticate, async (req, res) => {
+    try {
+        const order = await orderService.updateOrder(req.params.id, req.user.userId, req.body);
+        res.json(order);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// Delete order
+router.delete('/:id', authenticate, async (req, res) => {
+    try {
+        const result = await orderService.deleteOrder(req.params.id, req.user.userId);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
 module.exports = router;
