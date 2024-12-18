@@ -1,14 +1,20 @@
-const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
+const nodemailer = require('nodemailer');
 const rabbitmq = require('../config/rabbitmq');
 const { QUEUES } = require('../config/constants');
 
 class NotificationService {
     constructor() {
-        this.mailerSend = new MailerSend({
-            apiKey: process.env.MAILERSEND_API_KEY || 'your-api-key-here'
+        this.transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            secure: true,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
         });
 
-        this.sentFrom = new Sender(process.env.SMTP_USER, "Multi-Vendor System");
+        this.sentFrom = process.env.SMTP_USER;
     }
 
     async sendNotification(type, data) {
@@ -30,20 +36,17 @@ class NotificationService {
         try {
             console.log('Sending email to:', to);
             
-            const recipients = [
-                new Recipient(to)
-            ];
+            const mailOptions = {
+                from: this.sentFrom,
+                to: to,
+                subject: subject,
+                html: body,
+                text: body.replace(/<[^>]*>/g, '') // Strip HTML for text version
+            };
 
-            const emailParams = new EmailParams()
-                .setFrom(this.sentFrom)
-                .setTo(recipients)
-                .setSubject(subject)
-                .setHtml(body)
-                .setText(body.replace(/<[^>]*>/g, '')); // Strip HTML for text version
-
-            const response = await this.mailerSend.email.send(emailParams);
-            console.log('Email sent successfully:', response);
-            return { success: true, response };
+            const info = await this.transporter.sendMail(mailOptions);
+            console.log('Email sent successfully:', info);
+            return { success: true, info };
         } catch (error) {
             console.error('Error sending email:', error);
             throw error;
