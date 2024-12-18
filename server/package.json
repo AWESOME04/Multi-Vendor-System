@@ -1,15 +1,15 @@
 {
   "name": "multi-vendor-system",
   "version": "1.0.0",
-  "main": "src/app.js",
+  "main": "app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start:publisher": "node src/examples/testPublisher.js",
-    "start:consumer": "node src/examples/testConsumer.js",
-    "dev:publisher": "nodemon src/examples/testPublisher.js",
-    "dev:consumer": "nodemon src/examples/testConsumer.js"
+    "start:publisher": "node examples/testPublisher.js",
+    "start:consumer": "node examples/testConsumer.js",
+    "dev:publisher": "nodemon examples/testPublisher.js",
+    "dev:consumer": "nodemon examples/testConsumer.js"
   },
   "author": "",
   "license": "ISC",
