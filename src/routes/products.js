@@ -195,20 +195,25 @@ router.post('/', authenticate, authorize(['seller']), upload.single('image'), as
             const product = result.rows[0];
 
             // Index product in Elasticsearch
-            await esClient.index({
-                index: 'products',
-                id: product.product_id.toString(),
-                body: {
-                    productId: product.product_id,
-                    title: product.title,
-                    description: product.description,
-                    price: product.price,
-                    imageUrl: product.image_url,
-                    stockQuantity: product.stock_quantity,
-                    sellerId: product.seller_id,
-                    createdAt: product.created_at
-                }
-            });
+            try {
+                await esClient.index({
+                    index: 'products',
+                    id: product.product_id.toString(),
+                    body: {
+                        productId: product.product_id,
+                        title: product.title,
+                        description: product.description,
+                        price: product.price,
+                        imageUrl: product.image_url,
+                        stockQuantity: product.stock_quantity,
+                        sellerId: product.seller_id,
+                        createdAt: product.created_at
+                    }
+                });
+            } catch (error) {
+                console.error('Error indexing product in Elasticsearch:', error);
+                // Don't fail the request if Elasticsearch indexing fails
+            }
 
             await client.query('COMMIT');
             res.status(201).json(product);
@@ -287,20 +292,25 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
         const product = result.rows[0];
 
         // Update product in Elasticsearch
-        await esClient.update({
-            index: 'products',
-            id: product.product_id.toString(),
-            body: {
-                doc: {
-                    title: product.title,
-                    description: product.description,
-                    price: product.price,
-                    imageUrl: product.image_url,
-                    stockQuantity: product.stock_quantity,
-                    updatedAt: product.updated_at
+        try {
+            await esClient.update({
+                index: 'products',
+                id: product.product_id.toString(),
+                body: {
+                    doc: {
+                        title: product.title,
+                        description: product.description,
+                        price: product.price,
+                        imageUrl: product.image_url,
+                        stockQuantity: product.stock_quantity,
+                        updatedAt: product.updated_at
+                    }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error updating product in Elasticsearch:', error);
+            // Don't fail the request if Elasticsearch indexing fails
+        }
 
         await client.query('COMMIT');
         res.json(product);
@@ -342,10 +352,15 @@ router.delete('/:id', authenticate, authorize(['seller']), async (req, res) => {
         }
 
         // Delete product from Elasticsearch
-        await esClient.delete({
-            index: 'products',
-            id: req.params.id.toString()
-        });
+        try {
+            await esClient.delete({
+                index: 'products',
+                id: req.params.id.toString()
+            });
+        } catch (error) {
+            console.error('Error deleting product from Elasticsearch:', error);
+            // Don't fail the request if Elasticsearch deletion fails
+        }
 
         // Delete the product (cascade will handle order_items)
         await client.query('DELETE FROM products WHERE product_id = $1', [req.params.id]);
