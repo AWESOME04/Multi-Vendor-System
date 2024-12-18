@@ -1,58 +1,49 @@
-const nodemailer = require('nodemailer');
+const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
 const rabbitmq = require('../config/rabbitmq');
 const { QUEUES } = require('../config/constants');
 
 class NotificationService {
     constructor() {
-        // Initialize email transporter
-        this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-            secure: process.env.SMTP_PORT === '465',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
+        this.mailerSend = new MailerSend({
+            apiKey: process.env.MAILERSEND_API_KEY || 'your-api-key-here'
         });
 
-        // Test email connection
-        this.transporter.verify((error, success) => {
-            if (error) {
-                console.error('Error verifying email connection:', error);
-            } else {
-                console.log('Email server is ready to send messages');
-            }
-        });
-
-        // Strategy pattern for different notification types
-        this.notificationStrategies = {
-            email: this.sendEmail.bind(this),
-            sms: this.sendSMS.bind(this),
-            push: this.sendPushNotification.bind(this)
-        };
+        this.sentFrom = new Sender(process.env.SMTP_USER, "Multi-Vendor System");
     }
 
     async sendNotification(type, data) {
         console.log(`Sending ${type} notification:`, data);
         
-        const strategy = this.notificationStrategies[type];
-        if (!strategy) {
-            throw new Error(`Unsupported notification type: ${type}`);
+        switch (type) {
+            case 'email':
+                return await this.sendEmail(data);
+            case 'sms':
+                return await this.sendSMS(data);
+            case 'push':
+                return await this.sendPushNotification(data);
+            default:
+                throw new Error(`Unsupported notification type: ${type}`);
         }
-        return strategy(data);
     }
 
     async sendEmail({ to, subject, body }) {
         try {
             console.log('Sending email to:', to);
-            const info = await this.transporter.sendMail({
-                from: process.env.SMTP_USER,
-                to,
-                subject,
-                html: body
-            });
-            console.log('Email sent successfully:', info.messageId);
-            return { success: true, messageId: info.messageId };
+            
+            const recipients = [
+                new Recipient(to)
+            ];
+
+            const emailParams = new EmailParams()
+                .setFrom(this.sentFrom)
+                .setTo(recipients)
+                .setSubject(subject)
+                .setHtml(body)
+                .setText(body.replace(/<[^>]*>/g, '')); // Strip HTML for text version
+
+            const response = await this.mailerSend.email.send(emailParams);
+            console.log('Email sent successfully:', response);
+            return { success: true, response };
         } catch (error) {
             console.error('Error sending email:', error);
             throw error;
@@ -60,18 +51,17 @@ class NotificationService {
     }
 
     async sendSMS({ phoneNumber, message }) {
-        // TODO: Implement SMS service (e.g., Twilio)
+        // TODO: Implement SMS service
         console.log('SMS notification (mock):', { phoneNumber, message });
         return { success: true, mock: true };
     }
 
     async sendPushNotification({ userId, title, message }) {
-        // TODO: Implement push notifications (e.g., Firebase Cloud Messaging)
+        // TODO: Implement push notifications
         console.log('Push notification (mock):', { userId, title, message });
         return { success: true, mock: true };
     }
 
-    // Method to publish notification events to RabbitMQ
     async publishNotificationEvent(type, data) {
         try {
             if (!rabbitmq.channel) {
