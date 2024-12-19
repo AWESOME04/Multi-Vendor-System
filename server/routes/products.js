@@ -148,7 +148,7 @@ router.post('/', authenticate, authorize(['seller']), upload.single('image'), as
         const result = await client.query(
             `INSERT INTO products (
                 title, description, price, stock_quantity, category, 
-                product_image, seller_id, created_at, updated_at
+                image_url, seller_id, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING *`,
             [title, description, numericPrice, numericStock, category, imageUrl, req.user.id]
@@ -196,7 +196,7 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
             throw new Error('Product not found or unauthorized');
         }
 
-        let imageUrl = productCheck.rows[0].product_image;
+        let imageUrl = productCheck.rows[0].image_url;
         if (req.file) {
             const storageRef = ref(storage, `products/${Date.now()}-${req.file.originalname}`);
             const snapshot = await uploadBytes(storageRef, req.file.buffer);
@@ -218,7 +218,7 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
                 price = $3,
                 stock_quantity = $4,
                 category = COALESCE($5, category),
-                product_image = $6,
+                image_url = $6,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $7 AND seller_id = $8
             RETURNING *`,

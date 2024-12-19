@@ -29,7 +29,7 @@ const ProfileView = () => {
       setOrders(ordersRes.data);
       setProducts(productsRes.data);
     } catch (error) {
-      toast.error('Failed to fetch user data');
+      // toast.error('Failed to fetch user data');
       console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);

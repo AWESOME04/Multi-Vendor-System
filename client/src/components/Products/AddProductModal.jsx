@@ -37,6 +37,12 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
       return;
     }
 
+    // Validate form data
+    if (!formData.title || !formData.description || !formData.price || !formData.stockQuantity || !formData.category) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     // Validate numeric fields
     const numericPrice = parseFloat(formData.price);
     const numericStock = parseInt(formData.stockQuantity);
@@ -54,9 +60,11 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
     try {
       setLoading(true);
       const formPayload = new FormData();
-      Object.keys(formData).forEach(key => {
-        formPayload.append(key, formData[key]);
-      });
+      formPayload.append('title', formData.title);
+      formPayload.append('description', formData.description);
+      formPayload.append('price', numericPrice);
+      formPayload.append('stockQuantity', numericStock);
+      formPayload.append('category', formData.category);
 
       if (selectedFile) {
         formPayload.append('image', selectedFile);
@@ -69,11 +77,13 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
       });
 
       toast.success('Product added successfully!');
-      onProductAdded(response.data);
+      if (onProductAdded) {
+        onProductAdded(response.data);
+      }
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add product');
       console.error('Error adding product:', error);
+      toast.error(error.response?.data?.message || 'Failed to add product');
     } finally {
       setLoading(false);
     }
@@ -85,7 +95,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
         <h2>Add New Product</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Product Title</label>
+            <label>Title*</label>
             <input
               type="text"
               name="title"
@@ -94,8 +104,9 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               required
             />
           </div>
+
           <div className="form-group">
-            <label>Description</label>
+            <label>Description*</label>
             <textarea
               name="description"
               value={formData.description}
@@ -103,60 +114,58 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               required
             />
           </div>
+
           <div className="form-group">
-            <label>Price ($)</label>
+            <label>Price*</label>
             <input
               type="number"
               name="price"
-              min="0.01"
-              step="0.01"
               value={formData.price}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Stock Quantity*</label>
+            <input
+              type="number"
+              name="stockQuantity"
+              value={formData.stockQuantity}
+              onChange={handleChange}
+              min="0"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Category*</label>
+            <input
+              type="text"
+              name="category"
+              value={formData.category}
               onChange={handleChange}
               required
             />
           </div>
+
           <div className="form-group">
             <label>Product Image</label>
             <input
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              className="file-input"
             />
           </div>
-          <div className="form-group">
-            <label>Stock Quantity</label>
-            <input
-              type="number"
-              name="stockQuantity"
-              min="0"
-              value={formData.stockQuantity}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Category</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Category</option>
-              <option value="electronics">Electronics</option>
-              <option value="clothing">Clothing</option>
-              <option value="books">Books</option>
-              <option value="home">Home & Garden</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+
           <div className="modal-actions">
-            <button type="button" onClick={onClose} className="cancel-btn">
-              Cancel
-            </button>
-            <button type="submit" className="submit-btn" disabled={loading}>
+            <button type="submit" disabled={loading}>
               {loading ? 'Adding...' : 'Add Product'}
+            </button>
+            <button type="button" onClick={onClose}>
+              Cancel
             </button>
           </div>
         </form>

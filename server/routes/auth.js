@@ -29,8 +29,13 @@ router.get('/me', authenticate, async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        res.json(user);
+        res.json({
+            id: user.id,
+            email: user.email,
+            role: user.role
+        });
     } catch (error) {
+        console.error('Error in /me endpoint:', error);
         res.status(500).json({ message: error.message });
     }
 });
