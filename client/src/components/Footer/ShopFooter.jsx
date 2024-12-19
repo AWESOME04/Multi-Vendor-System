@@ -1,4 +1,5 @@
 import "./ShopFooter.css";
+import LogoImg from '../../assets/images/logo.png';
 import { Link } from "react-router-dom";
 
 
@@ -7,7 +8,8 @@ const ShopFooter = () => {
   return (
     <div className="sub-container">
       <div className="useful-links">
-        <h2 className="logo-text">LOGO</h2>
+        {/* <h2 className="logo-text">LOGO</h2> */}
+        <img src={LogoImg} alt="" />
         <ul className="useful-details">
           <li>+233 xxx xxx xxx</li>
           <li>location xx ,xxx</li>
