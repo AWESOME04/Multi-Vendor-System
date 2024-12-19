@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Link } from 'react-router-dom';
 import LoginModal from '@/components/Auth/LoginModal';
 import RegisterModal from '@/components/Auth/RegisterModal';
+import AddProductModal from '@/components/Products/AddProductModal';
+import './Account.css';
 
 const Account = () => {
   const store = useGlobalContext();
@@ -12,11 +14,17 @@ const Account = () => {
   const cartTotal = store.state.cartQuantity;
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+  };
+
+  const handleProductAdded = (newProduct) => {
+    // Refresh products list
+    store.getProducts();
   };
 
   return (
@@ -37,7 +45,19 @@ const Account = () => {
           </button>
           {showUserMenu && (
             <div className="user-menu-content">
+              <Link to="/profile" className="user-menu-item">View Profile</Link>
               <Link to="/orders" className="user-menu-item">My Orders</Link>
+              {user.role === 'seller' && (
+                <button 
+                  onClick={() => {
+                    setShowAddProduct(true);
+                    setShowUserMenu(false);
+                  }} 
+                  className="user-menu-item"
+                >
+                  Add Product
+                </button>
+              )}
               <button onClick={handleLogout} className="user-menu-item">Logout</button>
             </div>
           )}
@@ -70,6 +90,13 @@ const Account = () => {
             setShowRegister(false);
             setShowLogin(true);
           }}
+        />
+      )}
+
+      {showAddProduct && (
+        <AddProductModal
+          onClose={() => setShowAddProduct(false)}
+          onProductAdded={handleProductAdded}
         />
       )}
     </div>

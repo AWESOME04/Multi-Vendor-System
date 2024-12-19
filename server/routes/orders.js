@@ -6,7 +6,7 @@ const orderService = require('../services/orderService');
 // Create a new order
 router.post('/', authenticate, async (req, res) => {
     try {
-        const order = await orderService.createOrder(req.user.userId, req.body.items);
+        const order = await orderService.createOrder(req.user.id, req.body.items);
         res.status(201).json(order);
     } catch (error) {
         console.error('Error creating order:', error);
@@ -15,9 +15,16 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // Get all orders for current user
-router.get('/', authenticate, async (req, res) => {
+router.get('/user/:userId', authenticate, async (req, res) => {
     try {
-        const orders = await orderService.getUserOrders(req.user.userId);
+        const userId = parseInt(req.params.userId);
+        if (isNaN(userId)) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        if (userId !== req.user.id) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+        const orders = await orderService.getUserOrders(userId);
         res.json(orders);
     } catch (error) {
         console.error('Error fetching orders:', error);
@@ -25,11 +32,14 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-
 // Get specific order
 router.get('/:id', authenticate, async (req, res) => {
     try {
-        const order = await orderService.getOrder(req.params.id, req.user.userId);
+        const orderId = parseInt(req.params.id);
+        if (isNaN(orderId)) {
+            return res.status(400).json({ message: 'Invalid order ID' });
+        }
+        const order = await orderService.getOrder(orderId, req.user.id);
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
@@ -43,7 +53,11 @@ router.get('/:id', authenticate, async (req, res) => {
 // Update order status
 router.put('/:id', authenticate, async (req, res) => {
     try {
-        const order = await orderService.updateOrderStatus(req.params.id, req.user.userId, req.body.status);
+        const orderId = parseInt(req.params.id);
+        if (isNaN(orderId)) {
+            return res.status(400).json({ message: 'Invalid order ID' });
+        }
+        const order = await orderService.updateOrderStatus(orderId, req.user.id, req.body.status);
         res.json(order);
     } catch (error) {
         console.error('Error updating order:', error);
@@ -54,11 +68,15 @@ router.put('/:id', authenticate, async (req, res) => {
 // Delete order
 router.delete('/:id', authenticate, async (req, res) => {
     try {
-        const result = await orderService.deleteOrder(req.params.id, req.user.userId);
-        res.json(result);
+        const orderId = parseInt(req.params.id);
+        if (isNaN(orderId)) {
+            return res.status(400).json({ message: 'Invalid order ID' });
+        }
+        await orderService.deleteOrder(orderId, req.user.id);
+        res.status(204).send();
     } catch (error) {
         console.error('Error deleting order:', error);
-        res.status(500).json({ message: error.message });
+        res.status(400).json({ message: error.message });
     }
 });
 
