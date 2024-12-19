@@ -3,6 +3,7 @@ import { useGlobalContext } from '@/components/GlobalContext/GlobalContext';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import './Product.css';
+import PlaceholderImg from '../../../../assets/images/placeholder-img.png';
 
 const Product = ({ product, showAddToCart }) => {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ const Product = ({ product, showAddToCart }) => {
     <div className="product-container">
       <div className="image">
         <img
-          src={product?.image || 'https://via.placeholder.com/300'}
+          src={product?.image || PlaceholderImg}
           alt={product?.name}
           width="100%"
         />

@@ -14,17 +14,10 @@ router.post('/', authenticate, async (req, res) => {
     }
 });
 
-// Get all orders for current user
-router.get('/user/:userId', authenticate, async (req, res) => {
+// Get current user's orders
+router.get('/my-orders', authenticate, async (req, res) => {
     try {
-        const userId = parseInt(req.params.userId);
-        if (isNaN(userId)) {
-            return res.status(400).json({ message: 'Invalid user ID' });
-        }
-        if (userId !== req.user.id) {
-            return res.status(403).json({ message: 'Unauthorized' });
-        }
-        const orders = await orderService.getUserOrders(userId);
+        const orders = await orderService.getUserOrders(req.user.id);
         res.json(orders);
     } catch (error) {
         console.error('Error fetching orders:', error);

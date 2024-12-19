@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { authenticate, authorize } = require('../middleware/auth');
+const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+const { storage } = require('../firebase');
 const db = require('../database/db');
 
 // Configure multer for memory storage
@@ -63,13 +65,26 @@ router.post('/', authenticate, authorize(['seller']), upload.single('image'), as
             return res.status(400).json({ message: 'Invalid stock quantity' });
         }
 
+        // Handle image upload to Firebase
+        let imageUrl = null;
+        if (req.file) {
+            try {
+                const storageRef = ref(storage, `products/${Date.now()}-${req.file.originalname}`);
+                const snapshot = await uploadBytes(storageRef, req.file.buffer);
+                imageUrl = await getDownloadURL(snapshot.ref);
+            } catch (error) {
+                console.error('Error uploading image to Firebase:', error);
+                return res.status(400).json({ message: 'Failed to upload image' });
+            }
+        }
+
         const result = await db.query(
             `INSERT INTO products (
                 title, description, price, stock_quantity, category, 
                 image_url, seller_id, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING *`,
-            [title, description, numericPrice, numericStock, category, null, req.user.id]
+            [title, description, numericPrice, numericStock, category, imageUrl, req.user.id]
         );
 
         res.status(201).json(result.rows[0]);
