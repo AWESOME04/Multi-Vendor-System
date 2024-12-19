@@ -32,45 +32,52 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user || user.role !== 'seller') {
-      toast.error('Only sellers can add products');
-      return;
-    }
-
-    // Validate form data
-    if (!formData.title || !formData.description || !formData.price || !formData.stockQuantity || !formData.category) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    // Validate numeric fields
-    const numericPrice = parseFloat(formData.price);
-    const numericStock = parseInt(formData.stockQuantity);
-
-    if (isNaN(numericPrice) || numericPrice <= 0) {
-      toast.error('Please enter a valid price');
-      return;
-    }
-
-    if (isNaN(numericStock) || numericStock < 0) {
-      toast.error('Please enter a valid stock quantity');
-      return;
-    }
-
+    
     try {
       setLoading(true);
-      const formPayload = new FormData();
-      formPayload.append('title', formData.title);
-      formPayload.append('description', formData.description);
-      formPayload.append('price', numericPrice);
-      formPayload.append('stockQuantity', numericStock);
-      formPayload.append('category', formData.category);
 
-      if (selectedFile) {
-        formPayload.append('image', selectedFile);
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.price || !formData.stockQuantity || !formData.category) {
+        toast.error('Please fill in all required fields');
+        return;
       }
 
-      const response = await axios.post('http://localhost:3000/api/products', formPayload, {
+      // Validate numeric fields
+      const numericPrice = parseFloat(formData.price);
+      const numericStock = parseInt(formData.stockQuantity);
+
+      if (isNaN(numericPrice) || numericPrice <= 0) {
+        toast.error('Please enter a valid price');
+        return;
+      }
+
+      if (isNaN(numericStock) || numericStock < 0) {
+        toast.error('Please enter a valid stock quantity');
+        return;
+      }
+
+      // Create FormData object
+      const data = new FormData();
+      data.append('title', formData.title.trim());
+      data.append('description', formData.description.trim());
+      data.append('price', numericPrice.toString());
+      data.append('stockQuantity', numericStock.toString());
+      data.append('category', formData.category.trim());
+
+      if (selectedFile) {
+        data.append('image', selectedFile);
+      }
+
+      // Log the data being sent (for debugging)
+      console.log('Sending data:', {
+        title: formData.title,
+        description: formData.description,
+        price: numericPrice,
+        stockQuantity: numericStock,
+        category: formData.category
+      });
+
+      const response = await axios.post('http://localhost:3000/api/products', data, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -82,7 +89,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
       }
       onClose();
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error('Error adding product:', error.response?.data || error);
       toast.error(error.response?.data?.message || 'Failed to add product');
     } finally {
       setLoading(false);
@@ -102,6 +109,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               value={formData.title}
               onChange={handleChange}
               required
+              placeholder="Enter product title"
             />
           </div>
 
@@ -112,6 +120,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               value={formData.description}
               onChange={handleChange}
               required
+              placeholder="Enter product description"
             />
           </div>
 
@@ -122,9 +131,10 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               name="price"
               value={formData.price}
               onChange={handleChange}
-              min="0"
+              min="0.01"
               step="0.01"
               required
+              placeholder="Enter price"
             />
           </div>
 
@@ -137,18 +147,25 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
               onChange={handleChange}
               min="0"
               required
+              placeholder="Enter stock quantity"
             />
           </div>
 
           <div className="form-group">
             <label>Category*</label>
-            <input
-              type="text"
+            <select
               name="category"
               value={formData.category}
               onChange={handleChange}
               required
-            />
+            >
+              <option value="">Select a category</option>
+              <option value="electronics">Electronics</option>
+              <option value="clothing">Clothing</option>
+              <option value="books">Books</option>
+              <option value="home">Home & Garden</option>
+              <option value="other">Other</option>
+            </select>
           </div>
 
           <div className="form-group">
@@ -161,10 +178,10 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
           </div>
 
           <div className="modal-actions">
-            <button type="submit" disabled={loading}>
+            <button type="submit" disabled={loading} className="submit-btn">
               {loading ? 'Adding...' : 'Add Product'}
             </button>
-            <button type="button" onClick={onClose}>
+            <button type="button" onClick={onClose} className="cancel-btn">
               Cancel
             </button>
           </div>
