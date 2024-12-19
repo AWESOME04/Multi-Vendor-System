@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
-import { toast } from 'react-toastify';
 import './ProfileView.css';
 
 const ProfileView = () => {
