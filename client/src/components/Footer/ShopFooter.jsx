@@ -9,7 +9,9 @@ const ShopFooter = () => {
     <div className="sub-container">
       <div className="useful-links">
         {/* <h2 className="logo-text">LOGO</h2> */}
-        <img src={LogoImg} alt="" />
+        <Link to='/'>
+          <img src={LogoImg} alt="" />
+        </Link>
         <ul className="useful-details">
           <li>+233 xxx xxx xxx</li>
           <li>location xx ,xxx</li>

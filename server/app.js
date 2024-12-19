@@ -17,17 +17,14 @@ async function startServer() {
         const channel = await rabbitmq.connect();
         console.log('RabbitMQ connected successfully');
 
-        // Setup routes
         app.use('/api/auth', authRoutes);
         app.use('/api/products', productRoutes);
         app.use('/api/orders', orderRoutes);
 
-        // Basic root route
         app.get('/', (req, res) => {
             res.json({ message: 'This is the entry point for the Multi-Vendor System API' });
         });
 
-        // Error handling middleware
         app.use((err, req, res, next) => {
             console.error(err.stack);
             res.status(500).json({ message: 'Something went wrong!' });

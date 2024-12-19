@@ -57,7 +57,6 @@ const ProfileView = () => {
       <div className="profile-header">
         <h2>Profile</h2>
         <div className="user-info">
-          <p><strong>Name:</strong> {user.name}</p>
           <p><strong>Email:</strong> {user.email}</p>
           <p><strong>Role:</strong> {user.role}</p>
         </div>

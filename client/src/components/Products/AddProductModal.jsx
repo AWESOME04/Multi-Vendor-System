@@ -7,13 +7,13 @@ import './AddProductModal.css';
 const AddProductModal = ({ onClose, onProductAdded }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
     price: '',
-    image: '',
-    stock_quantity: '',
+    stockQuantity: '',
     category: ''
   });
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -24,6 +24,12 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || user.role !== 'seller') {
@@ -31,12 +37,35 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
       return;
     }
 
+    // Validate numeric fields
+    const numericPrice = parseFloat(formData.price);
+    const numericStock = parseInt(formData.stockQuantity);
+
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    if (isNaN(numericStock) || numericStock < 0) {
+      toast.error('Please enter a valid stock quantity');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await axios.post('http://localhost:3000/api/products', {
-        ...formData,
-        price: parseFloat(formData.price),
-        stock_quantity: parseInt(formData.stock_quantity)
+      const formPayload = new FormData();
+      Object.keys(formData).forEach(key => {
+        formPayload.append(key, formData[key]);
+      });
+
+      if (selectedFile) {
+        formPayload.append('image', selectedFile);
+      }
+
+      const response = await axios.post('http://localhost:3000/api/products', formPayload, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
       toast.success('Product added successfully!');
@@ -44,6 +73,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
       onClose();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add product');
+      console.error('Error adding product:', error);
     } finally {
       setLoading(false);
     }
@@ -55,11 +85,11 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
         <h2>Add New Product</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Product Name</label>
+            <label>Product Title</label>
             <input
               type="text"
-              name="name"
-              value={formData.name}
+              name="title"
+              value={formData.title}
               onChange={handleChange}
               required
             />
@@ -78,7 +108,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
             <input
               type="number"
               name="price"
-              min="0"
+              min="0.01"
               step="0.01"
               value={formData.price}
               onChange={handleChange}
@@ -86,22 +116,21 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
             />
           </div>
           <div className="form-group">
-            <label>Image URL</label>
+            <label>Product Image</label>
             <input
-              type="url"
-              name="image"
-              value={formData.image}
-              onChange={handleChange}
-              placeholder="https://example.com/image.jpg"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="file-input"
             />
           </div>
           <div className="form-group">
             <label>Stock Quantity</label>
             <input
               type="number"
-              name="stock_quantity"
+              name="stockQuantity"
               min="0"
-              value={formData.stock_quantity}
+              value={formData.stockQuantity}
               onChange={handleChange}
               required
             />

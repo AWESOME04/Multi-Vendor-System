@@ -7,7 +7,7 @@ const Banner = () => {
       <div className="banner">
         <div className="banner-text">
           <h1>
-            Grab upto 50% off on <br></br>selected Headphones
+            Grab upto 50% off on <br></br>selected Products
           </h1>
           <button className="btn-rounded">Buy Now</button>
         </div>

@@ -9,6 +9,20 @@ class OrderService {
         try {
             await client.query('BEGIN');
 
+            // Check if user is a buyer
+            const userResult = await client.query(
+                'SELECT role FROM users WHERE id = $1',
+                [userId]
+            );
+
+            if (userResult.rows.length === 0) {
+                throw new Error('User not found');
+            }
+
+            if (userResult.rows[0].role !== 'buyer') {
+                throw new Error('Only buyers can create orders');
+            }
+
             // Calculate total amount and verify stock
             let totalAmount = 0;
             for (const item of items) {
@@ -31,8 +45,8 @@ class OrderService {
 
             // Create order
             const orderResult = await client.query(
-                `INSERT INTO orders (user_id, total_amount, status)
-                VALUES ($1, $2, 'pending')
+                `INSERT INTO orders (user_id, total_amount, status, created_at, updated_at)
+                VALUES ($1, $2, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING *`,
                 [userId, totalAmount]
             );
@@ -49,40 +63,28 @@ class OrderService {
                     [order.id, item.productId, item.quantity]
                 );
 
+                // Update stock quantity
                 await client.query(
-                    'UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2',
+                    `UPDATE products 
+                    SET stock_quantity = stock_quantity - $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = $2`,
                     [item.quantity, item.productId]
                 );
             }
 
             await client.query('COMMIT');
 
-            // Get user email for notification
-            const userResult = await client.query(
-                'SELECT email FROM users WHERE id = $1',
-                [userId]
-            );
+            // Send notification
+            await notificationService.sendOrderNotification(order.id, userId, 'order_created');
 
-            const userEmail = userResult.rows[0].email;
-
-            // Publish notification event
-            if (rabbitmq.channel) {
-                const notificationEvent = {
-                    type: 'notification.email',
-                    data: {
-                        to: userEmail,
-                        subject: 'Order Confirmation',
-                        body: `Your order #${order.id} has been placed successfully.`,
-                        metadata: { orderId: order.id }
-                    }
-                };
-
-                rabbitmq.channel.publish(
-                    QUEUES.NOTIFICATION_EVENTS.exchange,
-                    QUEUES.NOTIFICATION_EVENTS.routingKey,
-                    Buffer.from(JSON.stringify(notificationEvent))
-                );
-            }
+            // Publish to order processing queue
+            await rabbitmq.publishToQueue(QUEUES.ORDER_PROCESSING, {
+                orderId: order.id,
+                userId,
+                items,
+                totalAmount
+            });
 
             return order;
         } catch (error) {
@@ -93,123 +95,131 @@ class OrderService {
         }
     }
 
-    async getOrder(orderId, userId) {
-        const client = await db.pool.connect();
-        try {
-            const result = await client.query(
-                `SELECT o.*, u.email as user_email,
-                    json_agg(
-                        json_build_object(
-                            'id', oi.id,
-                            'product_id', p.id,
-                            'name', p.name,
-                            'quantity', oi.quantity,
-                            'price', oi.price,
-                            'image', p.product_image
-                        )
-                    ) as items
-                FROM orders o
-                JOIN users u ON o.user_id = u.id
-                LEFT JOIN order_items oi ON o.id = oi.order_id
-                LEFT JOIN products p ON oi.product_id = p.id
-                WHERE o.id = $1 AND o.user_id = $2
-                GROUP BY o.id, u.email`,
-                [orderId, userId]
-            );
-
-            return result.rows[0] || null;
-        } finally {
-            client.release();
-        }
-    }
-
     async getUserOrders(userId) {
-        const client = await db.pool.connect();
-        try {
-            const result = await client.query(
-                `SELECT o.*,
+        const result = await db.query(
+            `SELECT o.*,
                     json_agg(
                         json_build_object(
                             'id', oi.id,
-                            'product_id', p.id,
-                            'name', p.name,
+                            'product_id', oi.product_id,
                             'quantity', oi.quantity,
                             'price', oi.price,
-                            'image', p.product_image
+                            'product', json_build_object(
+                                'title', p.title,
+                                'image', p.product_image
+                            )
                         )
                     ) as items
-                FROM orders o
-                LEFT JOIN order_items oi ON o.id = oi.order_id
-                LEFT JOIN products p ON oi.product_id = p.id
-                WHERE o.user_id = $1
-                GROUP BY o.id
-                ORDER BY o.created_at DESC`,
-                [userId]
-            );
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN products p ON oi.product_id = p.id
+            WHERE o.user_id = $1
+            GROUP BY o.id
+            ORDER BY o.created_at DESC`,
+            [userId]
+        );
 
-            return result.rows;
-        } finally {
-            client.release();
-        }
+        return result.rows;
     }
 
-    async updateOrderStatus(orderId, userId, status) {
-        const client = await db.pool.connect();
-        try {
-            const result = await client.query(
-                `UPDATE orders
-                SET status = $1
-                WHERE id = $2 AND user_id = $3
-                RETURNING *`,
-                [status, orderId, userId]
-            );
+    async getOrder(orderId, userId) {
+        const result = await db.query(
+            `SELECT o.*,
+                    json_agg(
+                        json_build_object(
+                            'id', oi.id,
+                            'product_id', oi.product_id,
+                            'quantity', oi.quantity,
+                            'price', oi.price,
+                            'product', json_build_object(
+                                'title', p.title,
+                                'image', p.product_image
+                            )
+                        )
+                    ) as items
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN products p ON oi.product_id = p.id
+            WHERE o.id = $1 AND o.user_id = $2
+            GROUP BY o.id`,
+            [orderId, userId]
+        );
 
-            if (result.rows.length === 0) {
-                throw new Error('Order not found or unauthorized');
-            }
-
-            return result.rows[0];
-        } finally {
-            client.release();
-        }
+        return result.rows[0];
     }
 
-    async deleteOrder(orderId, userId) {
+    async updateOrderStatus(orderId, status) {
+        const result = await db.query(
+            `UPDATE orders 
+            SET status = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING *`,
+            [status, orderId]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('Order not found');
+        }
+
+        const order = result.rows[0];
+        await notificationService.sendOrderNotification(orderId, order.user_id, 'order_status_updated');
+
+        return order;
+    }
+
+    async cancelOrder(orderId, userId) {
         const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
 
-            // Check if order exists and belongs to user
+            // Get order and verify ownership
             const orderResult = await client.query(
-                'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
+                'SELECT * FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE',
                 [orderId, userId]
             );
 
             if (orderResult.rows.length === 0) {
-                throw new Error('Order not found or unauthorized');
+                throw new Error('Order not found');
             }
 
-            // Get order items to return stock
+            const order = orderResult.rows[0];
+            if (order.status !== 'pending') {
+                throw new Error('Can only cancel pending orders');
+            }
+
+            // Get order items
             const itemsResult = await client.query(
-                'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+                'SELECT * FROM order_items WHERE order_id = $1',
                 [orderId]
             );
 
-            // Return items to inventory
+            // Restore stock quantities
             for (const item of itemsResult.rows) {
                 await client.query(
-                    'UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2',
+                    `UPDATE products 
+                    SET stock_quantity = stock_quantity + $1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = $2`,
                     [item.quantity, item.product_id]
                 );
             }
 
-            // Delete order items
-            await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-
-            // Delete order
-            await client.query('DELETE FROM orders WHERE id = $1', [orderId]);
+            // Update order status
+            await client.query(
+                `UPDATE orders 
+                SET status = 'cancelled',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1`,
+                [orderId]
+            );
 
             await client.query('COMMIT');
+
+            // Send notification
+            await notificationService.sendOrderNotification(orderId, userId, 'order_cancelled');
+
+            return { message: 'Order cancelled successfully' };
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;

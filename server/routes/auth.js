@@ -23,8 +23,16 @@ router.post('/login', async (req, res) => {
     }
 });
 
-router.get('/me', authenticate, (req, res) => {
-    res.json(req.user);
+router.get('/me', authenticate, async (req, res) => {
+    try {
+        const user = await authService.getUserById(req.user.userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
 module.exports = router;

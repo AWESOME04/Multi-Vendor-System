@@ -8,7 +8,7 @@ class AuthService {
         const query = `
             INSERT INTO users (email, password_hash, role)
             VALUES ($1, $2, $3)
-            RETURNING user_id, email, role
+            RETURNING id, email, role
         `;
         
         try {
@@ -32,12 +32,19 @@ class AuthService {
         }
 
         const token = jwt.sign(
-            { userId: user.user_id, role: user.role },
+            { userId: user.id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        return { token, user: { id: user.user_id, email: user.email, role: user.role } };
+        return { 
+            token, 
+            user: { 
+                id: user.id, 
+                email: user.email, 
+                role: user.role 
+            } 
+        };
     }
 
     verifyToken(token) {
@@ -46,6 +53,12 @@ class AuthService {
         } catch (error) {
             throw new Error('Invalid token');
         }
+    }
+
+    async getUserById(userId) {
+        const query = 'SELECT id, email, role FROM users WHERE id = $1';
+        const result = await db.query(query, [userId]);
+        return result.rows[0];
     }
 }
 

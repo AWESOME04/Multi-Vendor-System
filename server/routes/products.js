@@ -47,89 +47,51 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get seller's products
+router.get('/seller/:sellerId', authenticate, async (req, res) => {
+    try {
+        const sellerId = parseInt(req.params.sellerId);
+        if (isNaN(sellerId)) {
+            return res.status(400).json({ message: 'Invalid seller ID' });
+        }
+
+        const result = await db.query(
+            'SELECT * FROM products WHERE seller_id = $1 ORDER BY created_at DESC',
+            [sellerId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error getting seller products:', error);
+        res.status(400).json({ message: error.message });
+    }
+});
+
 // Search products (public)
 router.get('/search', async (req, res) => {
     try {
-        const { q, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ message: 'Search query is required' });
+        }
 
-        // Use Elasticsearch for search if query is provided
-        if (q) {
-            const { body } = await esClient.search({
-                index: 'products',
-                body: {
-                    from: (page - 1) * limit,
-                    size: limit,
-                    query: {
-                        bool: {
-                            must: [
-                                {
-                                    multi_match: {
-                                        query: q,
-                                        fields: ['title^2', 'description']
-                                    }
-                                }
-                            ],
-                            filter: [
-                                minPrice && {
-                                    range: {
-                                        price: { gte: minPrice }
-                                    }
-                                },
-                                maxPrice && {
-                                    range: {
-                                        price: { lte: maxPrice }
-                                    }
-                                }
-                            ].filter(Boolean)
-                        }
+        const { body } = await esClient.search({
+            index: 'products',
+            body: {
+                query: {
+                    multi_match: {
+                        query,
+                        fields: ['title', 'description', 'category']
                     }
                 }
-            });
-
-            const hits = body.hits.hits;
-            const total = body.hits.total.value;
-
-            res.json({
-                products: hits.map(hit => ({
-                    ...hit._source,
-                    score: hit._score
-                })),
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(total / limit),
-                totalProducts: total
-            });
-        } else {
-            // Use regular SQL if no search query
-            let query = 'SELECT * FROM products WHERE 1=1';
-            const params = [];
-            let paramCount = 1;
-
-            if (minPrice) {
-                query += ` AND price >= $${paramCount}`;
-                params.push(minPrice);
-                paramCount++;
             }
+        });
 
-            if (maxPrice) {
-                query += ` AND price <= $${paramCount}`;
-                params.push(maxPrice);
-                paramCount++;
-            }
+        const hits = body.hits.hits.map(hit => ({
+            id: hit._id,
+            ...hit._source
+        }));
 
-            query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-            params.push(limit, (page - 1) * limit);
-
-            const result = await db.query(query, params);
-            const countResult = await db.query('SELECT COUNT(*) FROM products');
-            const totalProducts = parseInt(countResult.rows[0].count);
-
-            res.json({
-                products: result.rows,
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(totalProducts / limit),
-                totalProducts
-            });
-        }
+        res.json(hits);
     } catch (error) {
         console.error('Error searching products:', error);
         res.status(400).json({ message: error.message });
@@ -140,7 +102,7 @@ router.get('/search', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const result = await db.query(
-            'SELECT * FROM products WHERE product_id = $1',
+            'SELECT * FROM products WHERE id = $1',
             [req.params.id]
         );
 
@@ -150,83 +112,71 @@ router.get('/:id', async (req, res) => {
 
         res.json(result.rows[0]);
     } catch (error) {
+        console.error('Error getting product:', error);
         res.status(400).json({ message: error.message });
     }
 });
 
 // Create product (sellers only)
 router.post('/', authenticate, authorize(['seller']), upload.single('image'), async (req, res) => {
+    const client = await db.pool.connect();
     try {
-        const { title, description, price, stockQuantity } = req.body;
+        await client.query('BEGIN');
+
         let imageUrl = null;
-
         if (req.file) {
-            try {
-                // Create file metadata including the content type
-                const metadata = {
-                    contentType: req.file.mimetype,
-                };
-
-                // Create a unique filename
-                const filename = `${Date.now()}-${req.file.originalname}`;
-                const storageRef = ref(storage, `products/${filename}`);
-
-                // Upload the file and metadata
-                const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
-                imageUrl = await getDownloadURL(snapshot.ref);
-                console.log('File uploaded successfully:', imageUrl);
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                return res.status(500).json({ message: 'Error uploading image to Firebase' });
-            }
+            const storageRef = ref(storage, `products/${Date.now()}-${req.file.originalname}`);
+            const snapshot = await uploadBytes(storageRef, req.file.buffer);
+            imageUrl = await getDownloadURL(snapshot.ref);
         }
 
-        const client = await db.pool.connect();
-        try {
-            await client.query('BEGIN');
-
-            const result = await client.query(
-                `INSERT INTO products (seller_id, title, description, price, image_url, stock_quantity)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                RETURNING *`,
-                [req.user.userId, title, description, price, imageUrl, stockQuantity]
-            );
-
-            const product = result.rows[0];
-
-            // Index product in Elasticsearch
-            try {
-                await esClient.index({
-                    index: 'products',
-                    id: product.product_id.toString(),
-                    body: {
-                        productId: product.product_id,
-                        title: product.title,
-                        description: product.description,
-                        price: product.price,
-                        imageUrl: product.image_url,
-                        stockQuantity: product.stock_quantity,
-                        sellerId: product.seller_id,
-                        createdAt: product.created_at
-                    }
-                });
-            } catch (error) {
-                console.error('Error indexing product in Elasticsearch:', error);
-                // Don't fail the request if Elasticsearch indexing fails
-            }
-
-            await client.query('COMMIT');
-            res.status(201).json(product);
-        } catch (error) {
-            await client.query('ROLLBACK');
-            console.error('Error creating product:', error);
-            res.status(400).json({ message: error.message });
-        } finally {
-            client.release();
+        const { title, description, price, stockQuantity, category } = req.body;
+        
+        // Validate required fields
+        if (!title || !description || !price || !stockQuantity || !category) {
+            throw new Error('Missing required fields');
         }
+
+        // Convert price and stockQuantity to numbers
+        const numericPrice = parseFloat(price);
+        const numericStock = parseInt(stockQuantity);
+
+        if (isNaN(numericPrice) || isNaN(numericStock)) {
+            throw new Error('Invalid price or stock quantity');
+        }
+
+        const result = await client.query(
+            `INSERT INTO products (
+                title, description, price, stock_quantity, category, 
+                product_image, seller_id, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING *`,
+            [title, description, numericPrice, numericStock, category, imageUrl, req.user.id]
+        );
+
+        // Index in Elasticsearch
+        await esClient.index({
+            index: 'products',
+            id: result.rows[0].id.toString(),
+            body: {
+                title,
+                description,
+                category,
+                price: numericPrice,
+                stockQuantity: numericStock,
+                imageUrl,
+                sellerId: req.user.id
+            }
+        });
+
+        await client.query('COMMIT');
+        res.status(201).json(result.rows[0]);
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error creating product:', error);
-        res.status(500).json({ message: 'Error creating product' });
+        res.status(400).json({ message: error.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -237,83 +187,62 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
         await client.query('BEGIN');
 
         // Check if product exists and belongs to seller
-        const productResult = await client.query(
-            'SELECT * FROM products WHERE product_id = $1 AND seller_id = $2',
-            [req.params.id, req.user.userId]
+        const productCheck = await client.query(
+            'SELECT * FROM products WHERE id = $1 AND seller_id = $2',
+            [req.params.id, req.user.id]
         );
 
-        if (productResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Product not found or unauthorized' });
+        if (productCheck.rows.length === 0) {
+            throw new Error('Product not found or unauthorized');
         }
 
-        let imageUrl = productResult.rows[0].image_url;
+        let imageUrl = productCheck.rows[0].product_image;
         if (req.file) {
-            try {
-                // Create file metadata including the content type
-                const metadata = {
-                    contentType: req.file.mimetype,
-                };
+            const storageRef = ref(storage, `products/${Date.now()}-${req.file.originalname}`);
+            const snapshot = await uploadBytes(storageRef, req.file.buffer);
+            imageUrl = await getDownloadURL(snapshot.ref);
+        }
 
-                // Create a unique filename
-                const filename = `${Date.now()}-${req.file.originalname}`;
-                const storageRef = ref(storage, `products/${filename}`);
+        const { title, description, price, stockQuantity, category } = req.body;
+        const numericPrice = price ? parseFloat(price) : productCheck.rows[0].price;
+        const numericStock = stockQuantity ? parseInt(stockQuantity) : productCheck.rows[0].stock_quantity;
 
-                // Upload the file and metadata
-                const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
-                imageUrl = await getDownloadURL(snapshot.ref);
-                console.log('File uploaded successfully:', imageUrl);
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                return res.status(500).json({ message: 'Error uploading image to Firebase' });
-            }
+        if (isNaN(numericPrice) || isNaN(numericStock)) {
+            throw new Error('Invalid price or stock quantity');
         }
 
         const result = await client.query(
             `UPDATE products 
             SET title = COALESCE($1, title),
                 description = COALESCE($2, description),
-                price = COALESCE($3, price),
-                image_url = COALESCE($4, image_url),
-                stock_quantity = COALESCE($5, stock_quantity),
+                price = $3,
+                stock_quantity = $4,
+                category = COALESCE($5, category),
+                product_image = $6,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE product_id = $6 AND seller_id = $7
+            WHERE id = $7 AND seller_id = $8
             RETURNING *`,
-            [
-                req.body.title,
-                req.body.description,
-                req.body.price,
-                imageUrl,
-                req.body.stockQuantity,
-                req.params.id,
-                req.user.userId
-            ]
+            [title, description, numericPrice, numericStock, category, imageUrl, req.params.id, req.user.id]
         );
 
-        const product = result.rows[0];
-
-        // Update product in Elasticsearch
-        try {
-            await esClient.update({
-                index: 'products',
-                id: product.product_id.toString(),
-                body: {
-                    doc: {
-                        title: product.title,
-                        description: product.description,
-                        price: product.price,
-                        imageUrl: product.image_url,
-                        stockQuantity: product.stock_quantity,
-                        updatedAt: product.updated_at
-                    }
+        // Update in Elasticsearch
+        await esClient.update({
+            index: 'products',
+            id: req.params.id.toString(),
+            body: {
+                doc: {
+                    title,
+                    description,
+                    category,
+                    price: numericPrice,
+                    stockQuantity: numericStock,
+                    imageUrl
                 }
-            });
-        } catch (error) {
-            console.error('Error updating product in Elasticsearch:', error);
-            // Don't fail the request if Elasticsearch indexing fails
-        }
+            }
+        });
 
         await client.query('COMMIT');
-        res.json(product);
+        res.json(result.rows[0]);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error updating product:', error);
@@ -330,43 +259,29 @@ router.delete('/:id', authenticate, authorize(['seller']), async (req, res) => {
         await client.query('BEGIN');
 
         // Check if product exists and belongs to seller
-        const productResult = await client.query(
-            'SELECT * FROM products WHERE product_id = $1 AND seller_id = $2',
-            [req.params.id, req.user.userId]
+        const productCheck = await client.query(
+            'SELECT * FROM products WHERE id = $1 AND seller_id = $2',
+            [req.params.id, req.user.id]
         );
 
-        if (productResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Product not found or unauthorized' });
+        if (productCheck.rows.length === 0) {
+            throw new Error('Product not found or unauthorized');
         }
 
-        // Check if product is in any pending orders
-        const pendingOrdersResult = await client.query(
-            `SELECT COUNT(*) FROM order_items oi
-            JOIN orders o ON oi.order_id = o.order_id
-            WHERE oi.product_id = $1 AND o.status = 'pending'`,
-            [req.params.id]
+        // Delete from database
+        await client.query(
+            'DELETE FROM products WHERE id = $1 AND seller_id = $2',
+            [req.params.id, req.user.id]
         );
 
-        if (parseInt(pendingOrdersResult.rows[0].count) > 0) {
-            throw new Error('Cannot delete product with pending orders');
-        }
-
-        // Delete product from Elasticsearch
-        try {
-            await esClient.delete({
-                index: 'products',
-                id: req.params.id.toString()
-            });
-        } catch (error) {
-            console.error('Error deleting product from Elasticsearch:', error);
-            // Don't fail the request if Elasticsearch deletion fails
-        }
-
-        // Delete the product (cascade will handle order_items)
-        await client.query('DELETE FROM products WHERE product_id = $1', [req.params.id]);
+        // Delete from Elasticsearch
+        await esClient.delete({
+            index: 'products',
+            id: req.params.id.toString()
+        });
 
         await client.query('COMMIT');
-        res.json({ message: 'Product deleted successfully' });
+        res.status(204).send();
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error deleting product:', error);

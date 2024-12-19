@@ -29,14 +29,16 @@ const Account = () => {
 
   return (
     <div className="account" style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-      <div className="cart">
-        <Link to="/cart">
-          <span className="account-details">
-            <FaShoppingCart />
-            <span className="items-in-cart">{cartTotal}</span>
-          </span>
-        </Link>
-      </div>
+      {user?.role === 'buyer' && (
+        <div className="cart">
+          <Link to="/cart">
+            <span className="account-details">
+              <FaShoppingCart />
+              <span className="items-in-cart">{cartTotal}</span>
+            </span>
+          </Link>
+        </div>
+      )}
 
       {user ? (
         <div className="user-menu">
@@ -46,7 +48,9 @@ const Account = () => {
           {showUserMenu && (
             <div className="user-menu-content">
               <Link to="/profile" className="user-menu-item">View Profile</Link>
-              <Link to="/orders" className="user-menu-item">My Orders</Link>
+              {user.role === 'buyer' && (
+                <Link to="/orders" className="user-menu-item">My Orders</Link>
+              )}
               {user.role === 'seller' && (
                 <button 
                   onClick={() => {
