@@ -30,7 +30,7 @@ router.get('/seller/:sellerId', authenticate, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM products WHERE seller_id = $1 ORDER BY created_at DESC',
-            [req.params.sellerId]
+            [req.user.userId]
         );
         res.json({ products: result.rows });
     } catch (error) {
@@ -84,7 +84,7 @@ router.post('/', authenticate, authorize(['seller']), upload.single('image'), as
                 image_url, seller_id, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING *`,
-            [title, description, numericPrice, numericStock, category, imageUrl, req.user.id]
+            [title, description, numericPrice, numericStock, category, imageUrl, req.user.userId]
         );
 
         res.status(201).json(result.rows[0]);
@@ -103,7 +103,7 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
         // Check if product exists and belongs to seller
         const checkResult = await db.query(
             'SELECT * FROM products WHERE id = $1 AND seller_id = $2',
-            [productId, req.user.id]
+            [productId, req.user.userId]
         );
 
         if (checkResult.rows.length === 0) {
@@ -120,7 +120,7 @@ router.put('/:id', authenticate, authorize(['seller']), upload.single('image'), 
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $6 AND seller_id = $7
             RETURNING *`,
-            [title, description, price, stockQuantity, category, productId, req.user.id]
+            [title, description, price, stockQuantity, category, productId, req.user.userId]
         );
 
         res.json(result.rows[0]);
@@ -135,7 +135,7 @@ router.delete('/:id', authenticate, authorize(['seller']), async (req, res) => {
     try {
         const result = await db.query(
             'DELETE FROM products WHERE id = $1 AND seller_id = $2 RETURNING *',
-            [req.params.id, req.user.id]
+            [req.params.id, req.user.userId]
         );
 
         if (result.rows.length === 0) {
@@ -145,7 +145,7 @@ router.delete('/:id', authenticate, authorize(['seller']), async (req, res) => {
         res.json({ message: 'Product deleted successfully' });
     } catch (error) {
         console.error('Error deleting product:', error);
-        res.status(400).json({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 });
 
