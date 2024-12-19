@@ -77,9 +77,11 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
         category: formData.category
       });
 
+      const token = localStorage.getItem('token');
       const response = await axios.post('http://localhost:3000/api/products', data, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         }
       });
 

@@ -52,15 +52,18 @@ const Account = () => {
                 <Link to="/orders" className="user-menu-item">My Orders</Link>
               )}
               {user.role === 'seller' && (
-                <button 
-                  onClick={() => {
-                    setShowAddProduct(true);
-                    setShowUserMenu(false);
-                  }} 
-                  className="user-menu-item"
-                >
-                  Add Product
-                </button>
+                <>
+                  <Link to="/seller/products" className="user-menu-item">View Products</Link>
+                  <button 
+                    onClick={() => {
+                      setShowAddProduct(true);
+                      setShowUserMenu(false);
+                    }} 
+                    className="user-menu-item"
+                  >
+                    Add Product
+                  </button>
+                </>
               )}
               <button onClick={handleLogout} className="user-menu-item">Logout</button>
             </div>
