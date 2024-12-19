@@ -48,9 +48,9 @@ const Account = () => {
           {showUserMenu && (
             <div className="user-menu-content">
               <Link to="/profile" className="user-menu-item">View Profile</Link>
-              {user.role === 'buyer' && (
-                <Link to="/orders" className="user-menu-item">My Orders</Link>
-              )}
+              {/* {user.role === 'buyer' && (
+                // <Link to="/orders" className="user-menu-item">My Orders</Link>
+              )} */}
               {user.role === 'seller' && (
                 <>
                   <Link to="/seller/products" className="user-menu-item">View Products</Link>
