@@ -15,7 +15,14 @@ const Product = ({ product, showAddToCart }) => {
       toast.error('Please login to add items to cart');
       return;
     }
-    store.addToCart(product._id);
+    store.addToCart({
+      _id: product._id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      product_image: product.image,
+      stock_quantity: product.stock_quantity
+    });
   };
 
   return (

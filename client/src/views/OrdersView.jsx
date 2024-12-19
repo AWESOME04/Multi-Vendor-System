@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './OrdersView.css';
+import PlaceholderImg from '../assets/images/placeholder-img.png'
 
 const OrdersView = () => {
   const [orders, setOrders] = useState([]);
@@ -66,11 +67,11 @@ const OrdersView = () => {
             {order.items && order.items.map(item => (
               <div key={item.id} className="order-item">
                 <img 
-                  src={item.product.image_url || '/placeholder-image.svg'} 
+                  src={item.product.image_url || PlaceholderImg} 
                   alt={item.product.title}
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = '/placeholder-image.svg';
+                    e.target.src = PlaceholderImg;
                   }}
                 />
                 <div className="item-details">

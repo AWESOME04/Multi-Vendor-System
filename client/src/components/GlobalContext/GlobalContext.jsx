@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer } from "react";
 import { toast } from "react-toastify";
+import axios from 'axios';
 
 const GlobalContext = createContext();
 
@@ -69,22 +70,27 @@ const initialState = {
 const reducer = (state, action) => {
   switch (action.type) {
     case "GET_PRODUCTS":
-      return { ...state, products: dummyProducts };
+      return { ...state, products: action.payload };
     case "ADD_TO_CART":
+      const existingCartItem = state.cart.find(item => item._id === action.payload._id);
+      if (existingCartItem) {
+        toast.info('Item already in cart');
+        return state;
+      }
+      
       const updatedProducts = state.products.map((product) =>
-        product._id === action.payload
+        product._id === action.payload._id
           ? { ...product, addedToCart: true }
           : product
       );
-      const addedProduct = state.products.find(
-        (product) => product._id === action.payload
-      );
+
       return {
         ...state,
         products: updatedProducts,
-        cart: [...state.cart, { ...addedProduct, quantity: 1 }],
+        cart: [...state.cart, { ...action.payload, quantity: 1 }],
         cartQuantity: state.cartQuantity + 1,
       };
+
     case "REMOVE_FROM_CART":
       const filteredCart = state.cart.filter(
         (item) => item._id !== action.payload
@@ -100,6 +106,7 @@ const reducer = (state, action) => {
         cart: filteredCart,
         cartQuantity: state.cartQuantity - 1,
       };
+
     case "UPDATE_CART_QUANTITY":
       const updatedCart = state.cart.map((item) =>
         item._id === action.payload.productId
@@ -111,6 +118,7 @@ const reducer = (state, action) => {
         cart: updatedCart,
         cartQuantity: updatedCart.reduce((total, item) => total + item.quantity, 0),
       };
+
     case "CLEAR_CART":
       const clearedProducts = state.products.map(product => ({
         ...product,
@@ -122,33 +130,40 @@ const reducer = (state, action) => {
         cart: [],
         cartQuantity: 0,
       };
+
     default:
       return state;
   }
 };
 
-export const GlobalContextProvider = ({ children }) => {
+const GlobalContextProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const getProducts = async () => {
     try {
-      dispatch({ type: "GET_PRODUCTS" });
+      const response = await axios.get('http://localhost:3000/api/products');
+      dispatch({ type: "GET_PRODUCTS", payload: response.data.products });
     } catch (error) {
-      console.log(error);
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
     }
   };
 
-  const addToCart = (productId) => {
-    dispatch({ type: "ADD_TO_CART", payload: productId });
-    toast.success("Added to cart!");
+  const addToCart = (product) => {
+    dispatch({ type: "ADD_TO_CART", payload: product });
+    toast.success('Added to cart!');
   };
 
   const removeFromCart = (productId) => {
     dispatch({ type: "REMOVE_FROM_CART", payload: productId });
-    toast.success("Removed from cart!");
+    toast.success('Removed from cart');
   };
 
-  const updateCartItemQuantity = (productId, quantity) => {
+  const updateCartQuantity = (productId, quantity) => {
+    if (quantity < 1) {
+      removeFromCart(productId);
+      return;
+    }
     dispatch({
       type: "UPDATE_CART_QUANTITY",
       payload: { productId, quantity },
@@ -159,6 +174,20 @@ export const GlobalContextProvider = ({ children }) => {
     dispatch({ type: "CLEAR_CART" });
   };
 
+  const addQuantity = (productId) => {
+    const item = state.cart.find((item) => item._id === productId);
+    if (item) {
+      updateCartQuantity(productId, item.quantity + 1);
+    }
+  };
+
+  const reduceQuantity = (productId) => {
+    const item = state.cart.find((item) => item._id === productId);
+    if (item) {
+      updateCartQuantity(productId, item.quantity - 1);
+    }
+  };
+
   return (
     <GlobalContext.Provider
       value={{
@@ -166,8 +195,10 @@ export const GlobalContextProvider = ({ children }) => {
         getProducts,
         addToCart,
         removeFromCart,
-        updateCartItemQuantity,
+        updateCartQuantity,
         clearCart,
+        addQuantity,
+        reduceQuantity,
       }}
     >
       {children}
@@ -175,6 +206,7 @@ export const GlobalContextProvider = ({ children }) => {
   );
 };
 
+export { GlobalContextProvider };
 export const useGlobalContext = () => {
   return useContext(GlobalContext);
 };
