@@ -8,21 +8,27 @@ import PlaceholderImg from '../../../../assets/images/placeholder-img.png';
 const Product = ({ product, showAddToCart }) => {
   const { user } = useAuth();
   const store = useGlobalContext();
-  const [quantity, setQuantity] = useState(1);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!user) {
       toast.error('Please login to add items to cart');
       return;
     }
-    store.addToCart({
-      _id: product._id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      product_image: product.image,
-      stock_quantity: product.stock_quantity
-    });
+    if (user.role !== 'BUYER') {
+      toast.error('Only buyers can add items to cart');
+      return;
+    }
+    try {
+      await store.addToCart({
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: 1
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
   };
 
   return (
@@ -41,7 +47,7 @@ const Product = ({ product, showAddToCart }) => {
         </div>
         <h5 className="description">{product?.description}</h5>
         <div className="product-info">
-          <p>Stock: {product?.stock_quantity}</p>
+          <p>Stock: {product?.stock_quantity || 'Available'}</p>
         </div>
         {showAddToCart && (
           <button
@@ -51,6 +57,12 @@ const Product = ({ product, showAddToCart }) => {
           >
             {product?.addedToCart ? 'Added to Cart' : 'Add to Cart'}
           </button>
+        )}
+        {!user && (
+          <p className="login-prompt">Login to add items to cart</p>
+        )}
+        {user && user.role !== 'BUYER' && (
+          <p className="seller-note">Sellers cannot add items to cart</p>
         )}
       </div>
     </div>

@@ -4,18 +4,21 @@ import { toast } from 'react-toastify';
 import './Auth.css';
 
 const LoginModal = ({ onClose, switchToRegister }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const { login } = useAuth();
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login(email, password);
+    const result = await login(formData.email, formData.password);
     if (result.success) {
-      toast.success('Login successful!');
       onClose();
-    } else {
-      toast.error(result.error);
     }
   };
 
@@ -27,18 +30,20 @@ const LoginModal = ({ onClose, switchToRegister }) => {
           <div className="form-group">
             <input
               type="email"
+              name="email"
               placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={handleChange}
               required
             />
           </div>
           <div className="form-group">
             <input
               type="password"
+              name="password"
               placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={handleChange}
               required
             />
           </div>
@@ -50,7 +55,9 @@ const LoginModal = ({ onClose, switchToRegister }) => {
             Register
           </button>
         </p>
-        <button className="close-button" onClick={onClose}>×</button>
+        <button className="close-button" onClick={onClose}>
+          ×
+        </button>
       </div>
     </div>
   );

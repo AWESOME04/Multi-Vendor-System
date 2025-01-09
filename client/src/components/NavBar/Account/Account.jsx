@@ -51,7 +51,7 @@ const Account = () => {
               {/* {user.role === 'buyer' && (
                 // <Link to="/orders" className="user-menu-item">My Orders</Link>
               )} */}
-              {user.role === 'seller' && (
+              {user.role === 'SELLER' && (
                 <>
                   <Link to="/seller/products" className="user-menu-item">View Products</Link>
                   <button 

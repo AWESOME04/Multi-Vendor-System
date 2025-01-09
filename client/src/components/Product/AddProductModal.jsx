@@ -1,32 +1,34 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
-import './Products.css';
+import * as api from '@/services/api';
+import { uploadImage } from '@/config/firebase';
+import './Product.css';
 
-const AddProductModal = ({ onClose, onProductAdded }) => {
+const AddProductModal = ({ onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     desc: '',
     type: '',
-    price: '',
     stock: '',
-    available: true,
-    img: null
+    price: '',
+    img: null,
+    available: true
   });
-
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
+    const { name, value, files, type: inputType } = e.target;
     if (name === 'img') {
       setFormData(prev => ({
         ...prev,
         img: files[0]
       }));
-    } else if (name === 'price' || name === 'stock') {
+    } else if (inputType === 'number') {
       setFormData(prev => ({
         ...prev,
-        [name]: parseFloat(value) || 0
+        [name]: parseFloat(value)
       }));
     } else {
       setFormData(prev => ({
@@ -41,33 +43,30 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
     setLoading(true);
 
     try {
-      // Create the product data
+      // First upload the image to Firebase
+      let imageUrl = '';
+      if (formData.img) {
+        imageUrl = await uploadImage(formData.img, 'products');
+      }
+
+      // Then create the product
       const productData = {
         name: formData.name,
         desc: formData.desc,
         type: formData.type,
-        price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
-        available: true
+        price: parseFloat(formData.price),
+        img: imageUrl,
+        available: true,
+        seller: user.id
       };
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8002/product/create', productData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
+      await api.createProduct(productData);
       toast.success('Product added successfully!');
-      if (onProductAdded) {
-        onProductAdded(response.data);
-      }
       onClose();
     } catch (error) {
       console.error('Error adding product:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to add product';
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.message || 'Failed to add product');
     } finally {
       setLoading(false);
     }
@@ -76,91 +75,78 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <h2 className='modal-title'>Add New Product</h2>
+        <h2>Add New Product</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <p>Product Name</p>
             <input
               type="text"
               name="name"
+              placeholder="Product Name"
               value={formData.name}
               onChange={handleChange}
               required
-              placeholder="Enter product name"
             />
           </div>
           <div className="form-group">
-            <p>Description</p>
             <textarea
               name="desc"
+              placeholder="Product Description"
               value={formData.desc}
               onChange={handleChange}
               required
-              placeholder="Enter product description"
             />
           </div>
           <div className="form-group">
-            <p>Product Type</p>
             <input
               type="text"
               name="type"
+              placeholder="Product Type"
               value={formData.type}
               onChange={handleChange}
               required
-              placeholder="Enter product type"
             />
           </div>
           <div className="form-group">
-            <p>Price</p>
             <input
               type="number"
               name="price"
+              placeholder="Price"
               value={formData.price}
               onChange={handleChange}
               required
               min="0"
               step="0.01"
-              placeholder="Enter price"
             />
           </div>
           <div className="form-group">
-            <p>Stock</p>
             <input
               type="number"
               name="stock"
+              placeholder="Stock Quantity"
               value={formData.stock}
               onChange={handleChange}
               required
               min="0"
-              placeholder="Enter stock quantity"
             />
           </div>
           <div className="form-group">
-            <p>Product Image</p>
             <input
               type="file"
               name="img"
-              onChange={handleChange}
               accept="image/*"
+              onChange={handleChange}
+              required
             />
           </div>
-          <div className="modal-actions">
-            <button 
-              type="submit" 
-              className="submit-btn"
-              disabled={loading}
-            >
-              {loading ? 'Adding...' : 'Add Product'}
-            </button>
-            <button 
-              type="button" 
-              className="cancel-btn" 
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-          </div>
+          <button 
+            type="submit" 
+            className="submit-button"
+            disabled={loading}
+          >
+            {loading ? 'Adding Product...' : 'Add Product'}
+          </button>
         </form>
+        <button className="close-button" onClick={onClose}>×</button>
       </div>
     </div>
   );

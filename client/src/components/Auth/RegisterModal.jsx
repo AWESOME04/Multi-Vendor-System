@@ -5,11 +5,10 @@ import './Auth.css';
 
 const RegisterModal = ({ onClose, switchToLogin }) => {
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    role: 'buyer' // Default role
+    phone: '',
+    role: 'BUYER' // Default role
   });
 
   const { register } = useAuth();
@@ -20,15 +19,11 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
 
     const result = await register({
-      name: formData.name,
       email: formData.email,
       password: formData.password,
+      phone: formData.phone,
       role: formData.role
     });
 
@@ -47,16 +42,6 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <input
-              type="text"
-              name="name"
-              placeholder="Full Name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <input
               type="email"
               name="email"
               placeholder="Email"
@@ -64,17 +49,6 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               onChange={handleChange}
               required
             />
-          </div>
-          <div className="form-group">
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="role-select"
-            >
-              <option value="buyer">Buyer</option>
-              <option value="seller">Seller</option>
-            </select>
           </div>
           <div className="form-group">
             <input
@@ -88,13 +62,24 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
           </div>
           <div className="form-group">
             <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
+              type="tel"
+              name="phone"
+              placeholder="Phone Number"
+              value={formData.phone}
               onChange={handleChange}
               required
             />
+          </div>
+          <div className="form-group">
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="role-select"
+            >
+              <option value="BUYER">Buyer</option>
+              <option value="SELLER">Seller</option>
+            </select>
           </div>
           <button type="submit" className="auth-button">Register</button>
         </form>
@@ -104,7 +89,9 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
             Login
           </button>
         </p>
-        <button className="close-button" onClick={onClose}>×</button>
+        <button className="close-button" onClick={onClose}>
+          ×
+        </button>
       </div>
     </div>
   );

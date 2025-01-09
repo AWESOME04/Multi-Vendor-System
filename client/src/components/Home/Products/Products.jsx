@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import axios from 'axios';
+import { toast } from 'react-toastify';
 import Product from "./Product/Product";
 import "./Products.css";
 import Skeleton from "react-loading-skeleton";
+import * as api from '@/services/api';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -13,10 +14,11 @@ const Products = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/products');
-        setProducts(response.data.products);
+        const { data } = await api.getProducts();
+        setProducts(data.products || data);
       } catch (error) {
         console.error('Error fetching products:', error);
+        toast.error('Failed to fetch products');
       } finally {
         setLoading(false);
       }
@@ -24,6 +26,8 @@ const Products = () => {
 
     fetchProducts();
   }, []);
+
+  const canAddToCart = user && user.role === 'BUYER';
 
   return (
     <div className="sub-container" id="products">
@@ -36,14 +40,14 @@ const Products = () => {
         <div className="contains-product">
           {products.map((product) => (
             <Product 
-              key={product.product_id} 
+              key={product._id || product.id} 
               product={{
                 ...product,
-                _id: product.product_id,
-                name: product.title,
-                image: product.image_url
+                _id: product._id || product.id,
+                name: product.name || product.title,
+                image: product.image || product.image_url
               }}
-              showAddToCart={user?.role === 'buyer'}
+              showAddToCart={canAddToCart}
             />
           ))}
         </div>
