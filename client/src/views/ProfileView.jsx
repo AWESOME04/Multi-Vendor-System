@@ -1,50 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { productApi, shoppingApi } from '@/config/api';
+import { productApi } from '@/config/api';
+import { toast } from 'react-toastify';
 import './ProfileView.css';
 
 const ProfileView = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [sellerProducts, setSellerProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchSellerProducts = async () => {
+      if (user?.role?.toUpperCase() === 'SELLER') {
+        try {
+          setLoading(true);
+          const productsRes = await productApi.get('/');
+          const products = productsRes?.data?.products || productsRes?.data?.data?.products || [];
+          const filteredProducts = products.filter(
+            product => product.seller === user.id
+          );
+          setSellerProducts(filteredProducts);
+        } catch (error) {
+          console.error('Error fetching seller products:', error);
+          toast.error('Failed to load products');
+          setSellerProducts([]);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
     if (user) {
-      fetchUserData();
+      fetchSellerProducts();
     }
   }, [user]);
-
-  const fetchUserData = async () => {
-    try {
-      setLoading(true);
-      
-      // Check user role (case insensitive)
-      const isSeller = user.role?.toUpperCase() === 'SELLER';
-      
-      if (isSeller) {
-        // Fetch seller's products
-        const productsRes = await productApi.get('/');
-        // Check the response structure and safely access products
-        const products = productsRes?.data?.products || productsRes?.data?.data?.products || [];
-        // Filter products by seller ID
-        const filteredProducts = products.filter(
-          product => product.seller === user.id
-        );
-        setSellerProducts(filteredProducts);
-      } else {
-        // Fetch buyer's orders
-        const ordersRes = await shoppingApi.get('/orders');
-        setOrders(ordersRes?.data?.data || ordersRes?.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      // Set empty arrays as fallback
-      isSeller ? setSellerProducts([]) : setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!user) {
     return (
@@ -71,19 +60,17 @@ const ProfileView = () => {
         <div className="user-info">
           <p><strong>Email:</strong> {user.email}</p>
           <p><strong>Role:</strong> {user.role}</p>
+          {/* Add any other user details you want to display */}
         </div>
       </div>
 
-      <div className="profile-content">
-        {isSeller ? (
-          // Seller View
+      {isSeller && (
+        <div className="profile-content">
           <div className="products-section">
             <h3>My Products</h3>
             {sellerProducts.length === 0 ? (
               <div className="no-products">
                 <p>You haven't posted any products yet</p>
-                {/* Optional: Add a button to add products */}
-                {/* <button className="add-product-btn">Add Your First Product</button> */}
               </div>
             ) : (
               <div className="products-grid">
@@ -93,6 +80,10 @@ const ProfileView = () => {
                       src={product.img || '/placeholder.png'} 
                       alt={product.name}
                       className="product-image"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/placeholder.png';
+                      }}
                     />
                     <div className="product-details">
                       <h4>{product.name}</h4>
@@ -112,46 +103,8 @@ const ProfileView = () => {
               </div>
             )}
           </div>
-        ) : (
-          // Buyer View
-          <div className="orders-section">
-            <h3>My Orders</h3>
-            {orders.length === 0 ? (
-              <div className="no-orders">
-                <p>You haven't placed any orders yet</p>
-              </div>
-            ) : (
-              <div className="orders-list">
-                {orders.map(order => (
-                  <div key={order.id} className="order-card">
-                    <div className="order-header">
-                      <h4>Order #{order.orderId}</h4>
-                      <span className={`status status-${order.status}`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="order-items">
-                      {order.items.map((item, index) => (
-                        <div key={index} className="order-item">
-                          <div className="item-details">
-                            <p>{item.name}</p>
-                            <p>Quantity: {item.quantity}</p>
-                            <p>Price: ${item.price}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="order-footer">
-                      <p>Total: ${order.amount}</p>
-                      <p>Ordered on: {new Date(order.created_at).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

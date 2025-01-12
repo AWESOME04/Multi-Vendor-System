@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { createProduct, uploadProductImage } from '@/services/api';
 import { toast } from 'react-toastify';
-import * as api from '@/services/api';
-import { uploadImage } from '@/config/firebase';
-import './Product.css';
+import './AddProductModal.css';
 
-const AddProductModal = ({ onClose }) => {
+const AddProductModal = ({ onClose, onProductAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
     desc: '',
-    type: '',
+    type: 'Electronics',
     stock: '',
     price: '',
     img: null,
@@ -41,12 +40,15 @@ const AddProductModal = ({ onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    toast.info('Adding product...');
 
     try {
-      // First upload the image to Firebase
+      // First upload the image
       let imageUrl = '';
       if (formData.img) {
-        imageUrl = await uploadImage(formData.img, 'products');
+        toast.info('Uploading image...');
+        const { imageUrl: uploadedUrl } = await uploadProductImage(formData.img);
+        imageUrl = uploadedUrl;
       }
 
       // Then create the product
@@ -61,12 +63,16 @@ const AddProductModal = ({ onClose }) => {
         seller: user.id
       };
 
-      await api.createProduct(productData);
+      const response = await createProduct(productData);
       toast.success('Product added successfully!');
+      
+      if (onProductAdded) {
+        onProductAdded(response.data);
+      }
       onClose();
     } catch (error) {
       console.error('Error adding product:', error);
-      toast.error(error.response?.data?.message || 'Failed to add product');
+      toast.error(error.message || 'Failed to add product');
     } finally {
       setLoading(false);
     }
@@ -78,75 +84,90 @@ const AddProductModal = ({ onClose }) => {
         <h2>Add New Product</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
+            <label>Product Image</label>
+            <input
+              type="file"
+              name="img"
+              onChange={handleChange}
+              accept="image/*"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Name</label>
             <input
               type="text"
               name="name"
-              placeholder="Product Name"
               value={formData.name}
               onChange={handleChange}
               required
             />
           </div>
+
           <div className="form-group">
+            <label>Description</label>
             <textarea
               name="desc"
-              placeholder="Product Description"
               value={formData.desc}
               onChange={handleChange}
               required
             />
           </div>
+
           <div className="form-group">
-            <input
-              type="text"
-              name="type"
-              placeholder="Product Type"
-              value={formData.type}
-              onChange={handleChange}
-              required
-            />
+            <label>Type</label>
+            <select name="type" value={formData.type} onChange={handleChange}>
+              <option value="Electronics">Electronics</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Home and Kitchen">Home and Kitchen</option>
+              <option value="Books">Books</option>
+              <option value="Sports">Sports</option>
+            </select>
           </div>
+
           <div className="form-group">
+            <label>Price</label>
             <input
               type="number"
               name="price"
-              placeholder="Price"
               value={formData.price}
               onChange={handleChange}
-              required
-              min="0"
               step="0.01"
+              min="0"
+              required
             />
           </div>
+
           <div className="form-group">
+            <label>Stock</label>
             <input
               type="number"
               name="stock"
-              placeholder="Stock Quantity"
               value={formData.stock}
               onChange={handleChange}
-              required
               min="0"
-            />
-          </div>
-          <div className="form-group">
-            <input
-              type="file"
-              name="img"
-              accept="image/*"
-              onChange={handleChange}
               required
             />
           </div>
-          <button 
-            type="submit" 
-            className="submit-button"
-            disabled={loading}
-          >
-            {loading ? 'Adding Product...' : 'Add Product'}
-          </button>
+
+          <div className="modal-actions">
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="cancel-btn"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="submit-btn"
+              disabled={loading}
+            >
+              {loading ? 'Adding...' : 'Add Product'}
+            </button>
+          </div>
         </form>
-        <button className="close-button" onClick={onClose}>×</button>
       </div>
     </div>
   );

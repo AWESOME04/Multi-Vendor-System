@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { setAuthToken } from '@/config/api';
-import * as api from '@/services/api';
-import { userApi } from '@/config/api';
+import { setAuthToken, removeAuthToken, getAuthToken } from '../config/api';
+import api from '../config/api';
+import { toast } from 'react-toastify';
 
 const AuthContext = createContext();
 
@@ -10,70 +10,106 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
+    try {
+      const token = getAuthToken();
+      const savedUser = localStorage.getItem('user');
+
+      if (token && savedUser) {
         try {
-          setAuthToken(token);
-          const response = await api.getUserProfile();
-          console.log('User profile:', response); // Debug log
-          setUser(response);
+          const userData = JSON.parse(savedUser);
+          if (userData && userData.id) {
+            setUser(userData);
+          } else {
+            console.log('Invalid user data found in localStorage');
+            logout();
+          }
         } catch (error) {
-          console.error('Error restoring auth state:', error);
-          localStorage.removeItem('token');
-          setAuthToken(null);
+          console.error('Error parsing saved user:', error);
+          logout();
         }
       }
+    } catch (error) {
+      console.error('Error in auth initialization:', error);
+    } finally {
       setLoading(false);
-    };
-
-    initializeAuth();
+    }
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await api.loginUser(email, password);
-      console.log('Login response:', response); // Debug log
-      
-      // Check if we have a valid response with token
-      if (response?.data?.token) {
-        const token = response.data.token;
-        const userData = response.data.user || response.data; // Fallback if user data is in root
-        
-        localStorage.setItem('token', token);
-        setAuthToken(token);
-        setUser(userData);
-        return userData;
-      } else {
-        console.error('Invalid login response:', response);
-        throw new Error('Invalid login credentials');
+      const response = await api.post('/login', { email, password });
+      console.log('Login response:', response);
+
+      const { id, email: userEmail, role, token } = response.data;
+
+      if (!token || !id || !role) {
+        console.error('Invalid response structure:', response.data);
+        throw new Error('Invalid response from server');
       }
+
+      const userData = {
+        id,
+        email: userEmail,
+        role,
+      };
+
+      setAuthToken(token);
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      toast.success('Login successful!');
+      return true;
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      toast.error(errorMessage);
+      return false;
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await api.registerUser(userData);
-      if (response?.token) {
-        localStorage.setItem('token', response.token);
-        setAuthToken(response.token);
-        setUser(response);
-        return response;
+      const response = await api.post('/signup', userData);
+      console.log('Register response:', response);
+
+      const { id, email, role, token } = response.data.data;
+
+      if (!token || !id || !role) {
+        console.error('Invalid response structure:', response.data);
+        throw new Error('Invalid response from server');
       }
-      throw new Error('Registration failed');
+
+      const newUser = {
+        id,
+        email,
+        role,
+      };
+
+      setAuthToken(token);
+      setUser(newUser);
+      localStorage.setItem('user', JSON.stringify(newUser));
+      
+      toast.success('Registration successful!');
+      return true;
     } catch (error) {
       console.error('Registration error:', error);
-      throw error;
+      const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+      toast.error(errorMessage);
+      return false;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setAuthToken(null);
-    setUser(null);
+    try {
+      removeAuthToken();
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      setUser(null);
+    }
   };
 
   const value = {
@@ -83,15 +119,9 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     isAuthenticated: !!user,
-    isSeller: user?.role?.toUpperCase() === 'SELLER',
-    isBuyer: user?.role?.toUpperCase() === 'BUYER'
+    isSeller: user?.role?.toLowerCase() === 'seller',
+    isBuyer: user?.role?.toLowerCase() === 'buyer'
   };
-
-  console.log('Auth context value:', value);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <AuthContext.Provider value={value}>

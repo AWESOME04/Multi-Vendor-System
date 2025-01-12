@@ -85,7 +85,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
 
       toast.info('Creating product...');
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8002/product/create', productData, {
+      const response = await axios.post('https://product-service-qwti.onrender.com/product/create', productData, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`

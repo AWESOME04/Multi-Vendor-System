@@ -1,6 +1,4 @@
-import api, { API_ENDPOINTS } from '../config/api';
-import axios from 'axios';
-import { productApi, shoppingApi } from '../config/api';
+import api, { API_ENDPOINTS, productApi, orderApi, notificationApi } from '../config/api';
 import { uploadImage } from '../config/cloudinary';
 
 // Auth Service
@@ -12,17 +10,15 @@ export const loginUser = async (email, password) => {
 export const registerUser = async (userData) => {
     try {
         const response = await api.post(API_ENDPOINTS.SIGNUP, userData);
-        const { data } = response.data; // Extract data from the response
+        const { data } = response.data;
         if (!data || !data.id || !data.token) {
             throw new Error('Invalid response from server');
         }
         return data;
     } catch (error) {
-        // Handle specific error responses from the server
         if (error.response?.data?.message) {
             throw new Error(error.response.data.message);
         }
-        // Handle network or other errors
         if (error.message) {
             throw new Error(error.message);
         }
@@ -32,14 +28,7 @@ export const registerUser = async (userData) => {
 
 export const getUserProfile = async () => {
     try {
-        const token = localStorage.getItem('token');
-        console.log('Getting user profile with token:', token);
-        const response = await api.get(API_ENDPOINTS.PROFILE, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-        console.log('User profile response:', response.data);
+        const response = await api.get(API_ENDPOINTS.PROFILE);
         return response.data;
     } catch (error) {
         console.error('Error getting user profile:', error);
@@ -49,26 +38,23 @@ export const getUserProfile = async () => {
 
 // Product Service
 export const getProducts = async () => {
-  try {
-    const response = await productApi.get('/');
-    console.log('Raw Product API Response:', response);
-    return response.data;
-  } catch (error) {
-    console.error('Product API Error:', error);
-    throw error;
-  }
+    try {
+        const response = await productApi.get(API_ENDPOINTS.PRODUCTS, {
+            timeout: 30000
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Product API Error:', error);
+        if (error.code === 'ECONNABORTED') {
+            throw new Error('The request took too long to complete. Please try again.');
+        }
+        throw error;
+    }
 };
 
 export const getSellerProducts = async () => {
   try {
-    const token = localStorage.getItem('token');
-    console.log('Getting seller products with token:', token);
-    const response = await productApi.get('/product/seller', {
-      headers: { 
-        Authorization: `Bearer ${token}`
-      }
-    });
-    console.log('Seller products response:', response.data);
+    const response = await productApi.get(API_ENDPOINTS.PRODUCTS_SELLER);
     return response.data;
   } catch (error) {
     console.error('Error fetching seller products:', error);
@@ -78,30 +64,27 @@ export const getSellerProducts = async () => {
 
 export const createProduct = async (productData) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await productApi.post('/product/create', productData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await productApi.post(API_ENDPOINTS.PRODUCT_CREATE, productData);
     console.log('Product creation response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error creating product:', error);
-    throw error;
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('The request took too long to complete. Please try again.');
+    }
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Failed to create product. Please try again.');
   }
 };
 
 export const updateProduct = async (productId, productData) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await productApi.put(`/product/update/${productId}`, productData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await productApi.put(
+      `${API_ENDPOINTS.PRODUCT_UPDATE}/${productId}`, 
+      productData
+    );
     return response.data;
   } catch (error) {
     console.error('Error updating product:', error);
@@ -111,12 +94,9 @@ export const updateProduct = async (productId, productData) => {
 
 export const deleteProduct = async (productId) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await productApi.delete(`/product/delete/${productId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    const response = await productApi.delete(
+      `${API_ENDPOINTS.PRODUCT_DELETE}/${productId}`
+    );
     return response.data;
   } catch (error) {
     console.error('Error deleting product:', error);
@@ -134,35 +114,92 @@ export const uploadProductImage = async (file) => {
   }
 };
 
+export const searchProducts = async (query) => {
+  try {
+    console.log('Searching products with query:', query);
+    const response = await productApi.get('/products/search', {
+      params: { 
+        name: query,  
+        desc: query   
+      }
+    });
+    console.log('Search response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Search error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config
+    });
+    throw error;
+  }
+};
+
 // Shopping Service
 export const getCart = async () => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user?.role?.toLowerCase() === 'buyer') {
-        return { data: { items: [] } };
+    if (!user) {
+        return { data: { items: [], total: 0 } };
     }
-    const response = await shoppingApi.get('/cart');
-    return response.data;
+    
+    const role = user.role?.toLowerCase();
+    if (role !== 'buyer') {
+        return { data: { items: [], total: 0 } };
+    }
+    
+    const response = await orderApi.get(`${API_ENDPOINTS.CART}?customerId=${user.id}`);
+    console.log('Cart API response:', response);
+    return response;
 };
 
 export const addToCart = async (productData) => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user?.role?.toLowerCase() === 'buyer') {
+    console.log('Product Data received:', productData);
+    
+    if (!user) {
+        throw new Error('Please login to add items to cart');
+    }
+    
+    const role = user.role?.toLowerCase();
+    if (role !== 'buyer') {
         throw new Error('Only buyers can add to cart');
     }
-    const response = await shoppingApi.post('/cart', productData);
-    return response.data;
+
+    try {
+        const cartData = {
+            customerId: user.id,
+            productId: productData.id,
+            name: productData.name,
+            price: parseFloat(productData.price),
+            quantity: productData.quantity || 1,
+            image: productData.image || ''
+        };
+        
+        console.log('Sending cart data:', cartData);
+        const response = await orderApi.post(API_ENDPOINTS.CART, cartData);
+        console.log('Cart response:', response);
+        return response;
+    } catch (error) {
+        console.error('Cart error details:', error.response?.data);
+        throw error;
+    }
 };
 
 export const getOrders = async () => {
-    const response = await shoppingApi.get('/orders');
+    const response = await orderApi.get('/orders');
     return response.data;
 };
 
-export const createOrder = async (productId) => {
+export const createOrder = async (orderData) => {
   try {
-    const response = await shoppingApi.post('/orders/create', { productId });
-    // Clear cart after successful order
-    await clearCart();
+    const response = await orderApi.post('/orders/create', orderData);
+    // Notify the notification service about the new order
+    await notificationApi.post('/notify/order-created', {
+      orderId: response.data.orderId,
+      userId: response.data.userId,
+      orderDetails: response.data
+    });
     return response.data;
   } catch (error) {
     console.error('Error creating order:', error);
@@ -172,27 +209,30 @@ export const createOrder = async (productId) => {
 
 export const updateCartQuantity = async (productId, quantity) => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user?.role?.toLowerCase() === 'buyer') {
+    if (!(user?.role?.toLowerCase() === 'buyer')) {
         throw new Error('Only buyers can update cart');
     }
-    const response = await shoppingApi.patch(`/cart/${productId}`, { quantity });
+    const response = await orderApi.patch(`${API_ENDPOINTS.CART}/${productId}`, { 
+        customerId: user.id,
+        quantity 
+    });
     return response.data;
 };
 
 export const removeFromCart = async (productId) => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user?.role?.toLowerCase() === 'buyer') {
+    if (!(user?.role?.toLowerCase() === 'buyer')) {
         throw new Error('Only buyers can remove from cart');
     }
-    const response = await shoppingApi.delete(`/cart/${productId}`);
+    const response = await orderApi.delete(`${API_ENDPOINTS.CART}/${productId}?customerId=${user.id}`);
     return response.data;
 };
 
 export const clearCart = async () => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user?.role?.toLowerCase() === 'buyer') {
+    if (!(user?.role?.toLowerCase() === 'buyer')) {
         throw new Error('Only buyers can clear cart');
     }
-    const response = await shoppingApi.delete('/cart');
+    const response = await orderApi.delete(`${API_ENDPOINTS.CART}?customerId=${user.id}`);
     return response.data;
 };

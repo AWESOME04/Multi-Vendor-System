@@ -22,7 +22,7 @@ const reducer = (state, action) => {
       return { 
         ...state, 
         cart: action.payload.items || [], 
-        cartQuantity: (action.payload.items || []).length 
+        cartQuantity: action.payload.items ? action.payload.items.length : 0 
       };
     case "ADD_TO_CART":
       return { 
@@ -36,6 +36,11 @@ const reducer = (state, action) => {
       return { ...state, loading: action.payload };
     case "SET_ERROR":
       return { ...state, error: action.payload };
+    case "SET_CART_QUANTITY":
+      return {
+        ...state,
+        cartQuantity: action.payload
+      };
     default:
       return state;
   }
@@ -79,19 +84,25 @@ const GlobalContextProvider = ({ children }) => {
   const getCart = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      // Double-check role before making API call
       if (!user || user.role?.toLowerCase() !== 'buyer') {
         dispatch({ type: "GET_CART", payload: { items: [] } });
         return;
       }
 
-      const { data } = await api.getCart();
-      if (data && data.items) {
-        dispatch({ type: "GET_CART", payload: data });
+      const response = await api.getCart();
+      console.log('Get cart response:', response);
+
+      if (response && response.data) {
+        dispatch({ 
+          type: "GET_CART", 
+          payload: {
+            items: response.data.items || [],
+            total: response.data.total || 0
+          }
+        });
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
-      // Silently handle errors and set empty cart
       dispatch({ type: "GET_CART", payload: { items: [] } });
     }
   };
@@ -108,21 +119,50 @@ const GlobalContextProvider = ({ children }) => {
         return;
       }
 
-      const { data } = await api.addToCart({
-        productId: product._id,
-        quantity: 1,
-        price: product.price
-      });
+      // Make sure we have all required fields
+      if (!product.id && !product._id) {
+        console.error('Missing product ID:', product);
+        toast.error('Invalid product data');
+        return;
+      }
 
-      if (data) {
-        dispatch({ type: "ADD_TO_CART", payload: data });
+      const cartItem = {
+        id: product.id || product._id,
+        name: product.name,
+        price: parseFloat(product.price),
+        quantity: product.quantity || 1,
+        image: product.img || product.image
+      };
+
+      console.log('Sending to API:', cartItem);
+      const response = await api.addToCart(cartItem);
+      console.log('Cart response:', response);
+
+      if (response && response.data) {
+        // Update the cart state with the new data
+        dispatch({ 
+          type: "GET_CART", 
+          payload: {
+            items: response.data.items || [],
+            total: response.data.total || 0
+          }
+        });
+        
+        // Update cart quantity
+        dispatch({
+          type: "SET_CART_QUANTITY",
+          payload: response.data.items ? response.data.items.length : 0
+        });
+
         toast.success('Item added to cart');
+        
+        // Refresh cart data
+        await getCart();
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      // Don't show error toast for role-related issues
       if (!error.message?.includes('Only buyers')) {
-        toast.error('Failed to add item to cart');
+        toast.error(error.message || 'Failed to add item to cart');
       }
     }
   };

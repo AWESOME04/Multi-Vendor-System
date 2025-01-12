@@ -1,52 +1,91 @@
 import axios from 'axios';
 
-// Base URLs for services
-const USER_SERVICE = 'http://localhost:8001';
-const PRODUCT_SERVICE = 'http://localhost:8002';
-const SHOPPING_SERVICE = 'http://localhost:8003';
+// Base URLs for different services
+const AUTH_SERVICE_URL = 'https://auth-service-rbc3.onrender.com';
+const PRODUCT_SERVICE_URL = 'https://product-service-qwti.onrender.com';
+const ORDER_SERVICE_URL = 'https://order-service-uag9.onrender.com';
+const NOTIFICATION_SERVICE_URL = 'https://notification-service-lpes.onrender.com';
 
+// API endpoints configuration
 export const API_ENDPOINTS = {
-    // User Service
-    LOGIN: `${USER_SERVICE}/login`,
-    SIGNUP: `${USER_SERVICE}/signup`,
-    PROFILE: `${USER_SERVICE}/profile`,
+    // Auth endpoints
+    LOGIN: '/auth/login',
+    SIGNUP: '/auth/signup',
+    PROFILE: '/auth/profile',
     
-    // Product Service
-    PRODUCTS: `${PRODUCT_SERVICE}/`,
-    PRODUCT_CREATE: `${PRODUCT_SERVICE}/product/create`,
+    // Product endpoints
+    PRODUCTS: '/',
+    PRODUCTS_SELLER: '/product/seller',
+    PRODUCT_CREATE: '/product/create',
+    PRODUCT_UPDATE: '/product/update',
+    PRODUCT_DELETE: '/product/delete',
     
-    // Shopping Service
-    CART: `${SHOPPING_SERVICE}/cart`,
-    ORDERS: `${SHOPPING_SERVICE}/orders`,
-    CREATE_ORDER: `${SHOPPING_SERVICE}/orders`
+    // Order endpoints
+    CART: '/cart',
+    ORDERS: '/orders',
+    ORDER_CREATE: '/orders/create',
+    
+    // Notification endpoints
+    NOTIFY_ORDER: '/notify/order-created'
 };
 
-// Create axios instances for each service
-export const userApi = axios.create({
-    baseURL: USER_SERVICE,
-    timeout: 15000,
+// Common axios config
+const defaultConfig = {
+    timeout: 30000, // Increased timeout to 30 seconds
     headers: {
         'Content-Type': 'application/json'
-    }
+    },
+    // Add retry logic
+    retry: 3,
+    retryDelay: 1000
+};
+
+// Create axios instances for different services
+const api = axios.create({
+    ...defaultConfig,
+    baseURL: AUTH_SERVICE_URL
 });
 
 export const productApi = axios.create({
-    baseURL: PRODUCT_SERVICE,
-    timeout: 15000,
-    headers: {
-        'Content-Type': 'application/json'
-    }
+    ...defaultConfig,
+    baseURL: PRODUCT_SERVICE_URL
 });
 
-export const shoppingApi = axios.create({
-    baseURL: SHOPPING_SERVICE,
-    timeout: 15000,
-    headers: {
-        'Content-Type': 'application/json'
-    }
+export const orderApi = axios.create({
+    ...defaultConfig,
+    baseURL: ORDER_SERVICE_URL
 });
 
-// Add auth token to requests
+export const notificationApi = axios.create({
+    ...defaultConfig,
+    baseURL: NOTIFICATION_SERVICE_URL
+});
+
+// Add retry interceptor
+const retryInterceptor = (axiosInstance) => {
+    axiosInstance.interceptors.response.use(null, async (error) => {
+        const config = error.config;
+        
+        if (!config || !config.retry) return Promise.reject(error);
+        
+        config.retryCount = config.retryCount || 0;
+        
+        if (config.retryCount >= config.retry) {
+            return Promise.reject(error);
+        }
+        
+        config.retryCount += 1;
+        const delayRetry = new Promise(resolve => 
+            setTimeout(resolve, config.retryDelay || 1000)
+        );
+        
+        await delayRetry;
+        console.log(`Retrying request (${config.retryCount}/${config.retry})`);
+        return axiosInstance(config);
+    });
+};
+
+// Request interceptor to add auth token
 const addAuthToken = (config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -55,29 +94,32 @@ const addAuthToken = (config) => {
     return config;
 };
 
-// Add request interceptor to all instances
-[userApi, productApi, shoppingApi].forEach(api => {
-    api.interceptors.request.use(addAuthToken);
+// Add interceptors to all service instances
+const apiInstances = [api, productApi, orderApi, notificationApi];
+apiInstances.forEach(instance => {
+    instance.interceptors.request.use(addAuthToken);
+    retryInterceptor(instance);
 });
 
+// Auth token management functions
 export const setAuthToken = (token) => {
     if (token) {
         localStorage.setItem('token', token);
-        [userApi, productApi, shoppingApi].forEach(api => {
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        apiInstances.forEach(instance => {
+            instance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         });
     } else {
         localStorage.removeItem('token');
-        [userApi, productApi, shoppingApi].forEach(api => {
-            delete api.defaults.headers.common['Authorization'];
+        apiInstances.forEach(instance => {
+            delete instance.defaults.headers.common['Authorization'];
         });
     }
 };
 
 export const removeAuthToken = () => {
     localStorage.removeItem('token');
-    [userApi, productApi, shoppingApi].forEach(api => {
-        delete api.defaults.headers.common['Authorization'];
+    apiInstances.forEach(instance => {
+        delete instance.defaults.headers.common['Authorization'];
     });
 };
 
@@ -85,4 +127,4 @@ export const getAuthToken = () => {
     return localStorage.getItem('token');
 };
 
-export default userApi;
+export default api;

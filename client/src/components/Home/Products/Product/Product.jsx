@@ -10,12 +10,14 @@ const Product = ({ product }) => {
 
   const handleAddToCart = () => {
     const cartItem = {
-      productId: product.id,
+      id: product._id || product.id,
       name: product.name,
       price: product.price,
       quantity: 1,
       image: product.img || product.image || "https://placehold.co/600x400"
     };
+    
+    console.log('Adding to cart:', cartItem);
     addToCart(cartItem);
   };
 

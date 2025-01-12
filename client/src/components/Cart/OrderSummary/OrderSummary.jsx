@@ -53,7 +53,7 @@ const OrderSummary = () => {
       `;
 
       // Send email through backend
-      await axios.post('http://localhost:8003/send-order-email', {
+      await axios.post('https://order-service-uag9.onrender.com/send-order-email', {
         email: user.email,
         orderDetails: emailContent
       });
