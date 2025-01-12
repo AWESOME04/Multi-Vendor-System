@@ -1,68 +1,54 @@
-import { useState } from 'react';
 import { useGlobalContext } from '@/components/GlobalContext/GlobalContext';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import './Product.css';
-import PlaceholderImg from '../../../../assets/images/placeholder-img.png';
 
-const Product = ({ product, showAddToCart }) => {
+const Product = ({ product }) => {
+  const { addToCart } = useGlobalContext();
   const { user } = useAuth();
-  const store = useGlobalContext();
+  const isBuyer = user?.role?.toUpperCase() === 'BUYER';
 
-  const handleAddToCart = async () => {
-    if (!user) {
-      toast.error('Please login to add items to cart');
-      return;
-    }
-    if (user.role !== 'BUYER') {
-      toast.error('Only buyers can add items to cart');
-      return;
-    }
-    try {
-      await store.addToCart({
-        productId: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: 1
-      });
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
-    }
+  const handleAddToCart = () => {
+    const cartItem = {
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image: product.img || product.image || "https://placehold.co/600x400"
+    };
+    addToCart(cartItem);
+  };
+
+  const handleImageError = (e) => {
+    e.target.src = "https://placehold.co/600x400";
   };
 
   return (
-    <div className="product-container">
-      <div className="image">
-        <img
-          src={product?.image || PlaceholderImg}
-          alt={product?.name}
-          width="100%"
+    <div className="product-card">
+      <div className="product-image">
+        <img 
+          src={product.img || product.image || "https://placehold.co/600x400"} 
+          alt={product.name}
+          onError={handleImageError}
         />
       </div>
-      <div className="product-details">
-        <div className="name-price-product">
-          <h4>{product?.name}</h4>
-          <h5>${product?.price}</h5>
+      <div className="product-info">
+        <h3>{product.name}</h3>
+        <p>{product.desc || product.description}</p>
+        <div className="product-details">
+          <span className="price">${product.price}</span>
+          <span className="stock">Stock: {product.stock || product.stock_quantity}</span>
         </div>
-        <h5 className="description">{product?.description}</h5>
-        <div className="product-info">
-          <p>Stock: {product?.stock_quantity || 'Available'}</p>
-        </div>
-        {showAddToCart && (
-          <button
+        {isBuyer && (
+          <button 
+            onClick={handleAddToCart} 
             className="add-to-cart"
-            onClick={handleAddToCart}
-            disabled={product?.addedToCart}
+            disabled={!product.available || (product.stock || product.stock_quantity) <= 0}
           >
-            {product?.addedToCart ? 'Added to Cart' : 'Add to Cart'}
+            {!product.available ? 'Not Available' : 
+             (product.stock || product.stock_quantity) <= 0 ? 'Out of Stock' : 
+             'Add to Cart'}
           </button>
-        )}
-        {!user && (
-          <p className="login-prompt">Login to add items to cart</p>
-        )}
-        {user && user.role !== 'BUYER' && (
-          <p className="seller-note">Sellers cannot add items to cart</p>
         )}
       </div>
     </div>

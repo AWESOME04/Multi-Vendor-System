@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import './Products.css';
-import { uploadImage } from '../../config/cloudinary';
+import * as api from '@/services/api';
 
-const AddProductModal = ({ onClose, onProductAdded }) => {
+const EditProductModal = ({ product, onClose, onProductUpdated }) => {
   const [formData, setFormData] = useState({
     name: '',
     desc: '',
@@ -17,6 +16,21 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
 
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        name: product.name || '',
+        desc: product.desc || '',
+        type: product.type || '',
+        price: product.price?.toString() || '',
+        stock: product.stock?.toString() || '',
+        available: product.available ?? true,
+        img: null
+      });
+      setImagePreview(product.img || null);
+    }
+  }, [product]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -34,8 +48,6 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
           setImagePreview(reader.result);
         };
         reader.readAsDataURL(file);
-      } else {
-        setImagePreview(null);
       }
     } else if (name === 'price' || name === 'stock') {
       setFormData(prev => ({
@@ -55,13 +67,14 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
     setLoading(true);
 
     try {
-      let imageUrl = null;
+      let imageUrl = product.img;
       
-      // Upload image if one is selected
+      // Upload new image if one is selected
       if (formData.img) {
         try {
           toast.info('Uploading image...');
-          imageUrl = await uploadImage(formData.img, 'products');
+          const { imageUrl: newImageUrl } = await api.uploadProductImage(formData.img);
+          imageUrl = newImageUrl;
           console.log('Image uploaded:', imageUrl);
           toast.success('Image uploaded successfully');
         } catch (error) {
@@ -79,27 +92,21 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
         type: formData.type,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
-        available: true,
+        available: formData.available,
         img: imageUrl
       };
 
-      toast.info('Creating product...');
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8002/product/create', productData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      toast.success('Product added successfully!');
-      if (onProductAdded) {
-        onProductAdded(response.data);
+      toast.info('Updating product...');
+      const updatedProduct = await api.updateProduct(product._id, productData);
+      toast.success('Product updated successfully!');
+      
+      if (onProductUpdated) {
+        onProductUpdated(updatedProduct);
       }
       onClose();
     } catch (error) {
-      console.error('Error adding product:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to add product';
+      console.error('Error updating product:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update product';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -109,7 +116,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <h2 className='modal-title'>Add New Product</h2>
+        <h2 className='modal-title'>Edit Product</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <p>Product Name</p>
@@ -185,7 +192,7 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
           <div className="modal-actions">
             <button type="button" onClick={onClose} className="cancel-btn">Cancel</button>
             <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Product'}
+              {loading ? 'Updating...' : 'Update Product'}
             </button>
           </div>
         </form>
@@ -194,4 +201,4 @@ const AddProductModal = ({ onClose, onProductAdded }) => {
   );
 };
 
-export default AddProductModal;
+export default EditProductModal;

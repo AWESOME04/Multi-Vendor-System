@@ -16,10 +16,25 @@ const Products = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.getProducts();
-      setProducts(response.data || []);
+      if (response && response.data && response.data.products) {
+        const productData = response.data.products;
+        setProducts(productData.map(product => ({
+          ...product,
+          id: product.id,
+          name: product.name,
+          description: product.desc,
+          price: product.price,
+          image: product.img,
+          stock_quantity: product.stock
+        })));
+      } else {
+        setProducts([]);
+        toast.error('No products found');
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
+      setProducts([]);
     } finally {
       setLoading(false);
     }

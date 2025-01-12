@@ -4,11 +4,20 @@ import { useGlobalContext } from "@/components/GlobalContext/GlobalContext";
 
 const OrderDetails = ({ product }) => {
   const store = useGlobalContext();
+  
+  const handleImageError = (e) => {
+    e.target.src = "https://placehold.co/600x400";
+  };
+
   return (
     <div className="order-details">
       <div className="order-detail">
         <div className="left-side">
-          <img src={product.product_image} alt="" />
+          <img 
+            src={product.image || "https://placehold.co/600x400"} 
+            alt={product.name}
+            onError={handleImageError}
+          />
         </div>
         <div className="right-side">
           <h3>{product.name}</h3>
@@ -23,7 +32,7 @@ const OrderDetails = ({ product }) => {
         <div className="increase-quantity">
           <button
             onClick={() => {
-              store.reduceQuantity(product._id);
+              store.reduceQuantity(product.productId);
             }}
           >
             -
@@ -31,7 +40,7 @@ const OrderDetails = ({ product }) => {
           <p>{product.quantity}</p>
           <button
             onClick={() => {
-              store.addQuantity(product._id);
+              store.addQuantity(product.productId);
             }}
           >
             +
@@ -41,7 +50,7 @@ const OrderDetails = ({ product }) => {
       <div className="remove">
         <button
           onClick={() => {
-            store.removeFromCart(product?._id);
+            store.removeFromCart(product.productId);
           }}
         >
           Remove

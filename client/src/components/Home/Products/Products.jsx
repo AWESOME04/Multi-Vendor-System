@@ -14,11 +14,20 @@ const Products = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await api.getProducts();
-        setProducts(data.products || data);
+        const data = await api.getProducts();
+        console.log('Products data:', data);
+        
+        if (data?.products && Array.isArray(data.products)) {
+          setProducts(data.products);
+        } else {
+          console.log('Invalid products data:', data);
+          setProducts([]);
+          toast.error('No products available');
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
         toast.error('Failed to fetch products');
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -27,31 +36,36 @@ const Products = () => {
     fetchProducts();
   }, []);
 
-  const canAddToCart = user && user.role === 'BUYER';
+  const canAddToCart = user?.role?.toUpperCase() === 'BUYER';
 
   return (
     <div className="sub-container" id="products">
-      <h2>Our Products</h2>
-      {loading ? (
-        <div className="skeleton">
-          <Skeleton height={250} count={4} />
-        </div>
-      ) : (
-        <div className="contains-product">
-          {products.map((product) => (
-            <Product 
-              key={product._id || product.id} 
-              product={{
-                ...product,
-                _id: product._id || product.id,
-                name: product.name || product.title,
-                image: product.image || product.image_url
-              }}
+      <h2>Products</h2>
+      <div className="products-grid">
+        {loading ? (
+          // Show loading skeletons
+          Array(8).fill(null).map((_, index) => (
+            <div key={index} className="product-skeleton">
+              <Skeleton height={200} />
+              <Skeleton count={3} />
+            </div>
+          ))
+        ) : products.length > 0 ? (
+          // Show products
+          products.map((product) => (
+            <Product
+              key={product.id}
+              product={product}
               showAddToCart={canAddToCart}
             />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          // Show no products message
+          <div className="no-products">
+            <p>No products available</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

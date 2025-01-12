@@ -3,3 +3,79 @@
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   grid-gap: 2rem;
 }
+
+.sub-container {
+  width: 90%;
+  max-width: 1600px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.sub-container h2 {
+  font-size: 2.5rem;
+  color: #2d3748;
+  margin-bottom: 3rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  margin: 0 auto;
+}
+
+/* Loading skeleton styles */
+.product-skeleton {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+}
+
+/* No products message */
+.no-products {
+  grid-column: span 3;
+  text-align: center;
+  padding: 2rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.no-products p {
+  font-size: 1.5rem;
+  color: #4a5568;
+}
+
+/* Force 3 columns until tablet */
+@media (max-width: 1024px) {
+  .products-grid {
+    gap: 2rem;
+  }
+}
+
+/* 2 columns for tablet */
+@media (max-width: 768px) {
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* 1 column for mobile */
+@media (max-width: 480px) {
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .sub-container {
+    width: 95%;
+    padding: 0 0.5rem;
+  }
+  
+  .sub-container h2 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+}

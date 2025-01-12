@@ -10,57 +10,32 @@ const initialState = {
   cartQuantity: 0,
   orders: [],
   loading: false,
-  error: null
+  error: null,
+  user: null
 };
 
 const reducer = (state, action) => {
   switch (action.type) {
-    case "SET_LOADING":
-      return { ...state, loading: action.payload };
-    case "SET_ERROR":
-      return { ...state, error: action.payload };
     case "GET_PRODUCTS":
-      return { ...state, products: action.payload, loading: false };
+      return { ...state, products: action.payload };
     case "GET_CART":
       return { 
         ...state, 
         cart: action.payload.items || [], 
-        cartQuantity: (action.payload.items || []).length,
-        loading: false 
+        cartQuantity: (action.payload.items || []).length 
       };
     case "ADD_TO_CART":
-      return {
-        ...state,
-        cart: [...state.cart, action.payload],
-        cartQuantity: state.cartQuantity + 1,
-        loading: false
+      return { 
+        ...state, 
+        cart: action.payload.items,
+        cartQuantity: action.payload.items.length
       };
-    case "REMOVE_FROM_CART":
-      return {
-        ...state,
-        cart: state.cart.filter(item => item.productId !== action.payload),
-        cartQuantity: state.cartQuantity - 1,
-        loading: false
-      };
-    case "UPDATE_CART_QUANTITY":
-      return {
-        ...state,
-        cart: state.cart.map(item =>
-          item.productId === action.payload.productId
-            ? { ...item, quantity: action.payload.quantity }
-            : item
-        ),
-        loading: false
-      };
-    case "GET_ORDERS":
-      return { ...state, orders: action.payload, loading: false };
-    case "CLEAR_CART":
-      return {
-        ...state,
-        cart: [],
-        cartQuantity: 0,
-        loading: false
-      };
+    case "SET_USER":
+      return { ...state, user: action.payload };
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
     default:
       return state;
   }
@@ -69,124 +44,180 @@ const reducer = (state, action) => {
 const GlobalContextProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Load cart on mount
+  useEffect(() => {
+    getProducts();
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      getCart();
+      const user = JSON.parse(localStorage.getItem('user'));
+      dispatch({ type: "SET_USER", payload: user });
+      
+      // Only fetch cart for buyers
+      if (user?.role?.toLowerCase() === 'buyer') {
+        getCart();
+      } else {
+        // Initialize empty cart for non-buyers
+        dispatch({ type: "GET_CART", payload: { items: [] } });
+      }
     }
   }, []);
 
   const getProducts = async () => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
       const { data } = await api.getProducts();
-      dispatch({ type: "GET_PRODUCTS", payload: data.products });
+      if (Array.isArray(data)) {
+        dispatch({ type: "GET_PRODUCTS", payload: data });
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
-      dispatch({ type: "SET_ERROR", payload: error.message });
     }
   };
 
   const getCart = async () => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      const user = JSON.parse(localStorage.getItem('user'));
+      // Double-check role before making API call
+      if (!user || user.role?.toLowerCase() !== 'buyer') {
+        dispatch({ type: "GET_CART", payload: { items: [] } });
+        return;
+      }
+
       const { data } = await api.getCart();
-      dispatch({ type: "GET_CART", payload: data });
+      if (data && data.items) {
+        dispatch({ type: "GET_CART", payload: data });
+      }
     } catch (error) {
       console.error('Error fetching cart:', error);
-      toast.error('Failed to fetch cart');
-      dispatch({ type: "SET_ERROR", payload: error.message });
+      // Silently handle errors and set empty cart
+      dispatch({ type: "GET_CART", payload: { items: [] } });
     }
   };
 
   const addToCart = async (product) => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        toast.error('Please login to add items to cart');
+        return;
+      }
+      if (user.role.toLowerCase() !== 'buyer') {
+        toast.error('Only buyers can add items to cart');
+        return;
+      }
+
       const { data } = await api.addToCart({
         productId: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: 1
+        quantity: 1,
+        price: product.price
       });
-      dispatch({ type: "ADD_TO_CART", payload: data });
-      toast.success('Added to cart');
+
+      if (data) {
+        dispatch({ type: "ADD_TO_CART", payload: data });
+        toast.success('Item added to cart');
+      }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add to cart');
-      dispatch({ type: "SET_ERROR", payload: error.message });
+      // Don't show error toast for role-related issues
+      if (!error.message?.includes('Only buyers')) {
+        toast.error('Failed to add item to cart');
+      }
+    }
+  };
+
+  const updateQuantity = async (productId, newQuantity) => {
+    try {
+      if (!productId) {
+        throw new Error('Product ID is required');
+      }
+
+      const response = await api.updateCartQuantity(productId, newQuantity);
+      if (response?.items) {
+        dispatch({ type: "GET_CART", payload: response });
+        toast.success('Cart updated');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update quantity';
+      toast.error(errorMessage);
+      getCart(); // Refresh cart state
+    }
+  };
+
+  const addQuantity = (productId) => {
+    const item = state.cart.find(item => item.productId === productId);
+    if (item) {
+      updateQuantity(productId, item.quantity + 1);
+    }
+  };
+
+  const reduceQuantity = (productId) => {
+    const item = state.cart.find(item => item.productId === productId);
+    if (item && item.quantity > 1) {
+      updateQuantity(productId, item.quantity - 1);
     }
   };
 
   const removeFromCart = async (productId) => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
-      await api.removeFromCart(productId);
-      dispatch({ type: "REMOVE_FROM_CART", payload: productId });
-      toast.success('Removed from cart');
+      const response = await api.removeFromCart(productId);
+      if (response?.items) {
+        dispatch({ type: "GET_CART", payload: response });
+        toast.success('Item removed from cart');
+      }
     } catch (error) {
-      console.error('Error removing from cart:', error);
-      toast.error('Failed to remove from cart');
-      dispatch({ type: "SET_ERROR", payload: error.message });
+      console.error('Error removing item:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove item';
+      toast.error(errorMessage);
+      getCart(); // Refresh cart state
     }
   };
 
-  const updateCartQuantity = async (productId, quantity) => {
+  const clearCart = async () => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
-      const { data } = await api.addToCart({
-        productId,
-        quantity
-      });
-      dispatch({ type: "UPDATE_CART_QUANTITY", payload: { productId, quantity } });
+      const response = await api.clearCart();
+      if (response) {
+        dispatch({ type: "GET_CART", payload: { items: [], total: 0 } });
+        toast.success('Cart cleared');
+      }
     } catch (error) {
-      console.error('Error updating quantity:', error);
-      toast.error('Failed to update quantity');
-      dispatch({ type: "SET_ERROR", payload: error.message });
+      console.error('Error clearing cart:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to clear cart';
+      toast.error(errorMessage);
     }
   };
 
   const createOrder = async () => {
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
-      const { data } = await api.createOrder();
-      dispatch({ type: "CLEAR_CART" });
-      toast.success('Order created successfully');
-      return data;
+      const response = await api.createOrder();
+      if (response) {
+        await clearCart();
+        toast.success('Order placed successfully!');
+        window.location.href = '/';
+      }
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Failed to create order');
-      dispatch({ type: "SET_ERROR", payload: error.message });
-      throw error;
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create order';
+      toast.error(errorMessage);
     }
   };
 
-  const getOrders = async () => {
-    try {
-      dispatch({ type: "SET_LOADING", payload: true });
-      const { data } = await api.getOrders();
-      dispatch({ type: "GET_ORDERS", payload: data });
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to fetch orders');
-      dispatch({ type: "SET_ERROR", payload: error.message });
-    }
+  const value = {
+    state,
+    getProducts,
+    getCart,
+    addToCart,
+    addQuantity,
+    reduceQuantity,
+    removeFromCart,
+    clearCart,
+    createOrder
   };
 
   return (
-    <GlobalContext.Provider
-      value={{
-        state,
-        getProducts,
-        getCart,
-        addToCart,
-        removeFromCart,
-        updateCartQuantity,
-        createOrder,
-        getOrders
-      }}
-    >
+    <GlobalContext.Provider value={value}>
       {children}
     </GlobalContext.Provider>
   );
@@ -195,7 +226,7 @@ const GlobalContextProvider = ({ children }) => {
 const useGlobalContext = () => {
   const context = useContext(GlobalContext);
   if (!context) {
-    throw new Error("useGlobalContext must be used within GlobalContextProvider");
+    throw new Error("useGlobalContext must be used within a GlobalContextProvider");
   }
   return context;
 };

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
-import * as api from '../services/api';
-import { setAuthToken, removeAuthToken, getAuthToken } from '../config/api';
+import { setAuthToken } from '@/config/api';
+import * as api from '@/services/api';
+import { userApi } from '@/config/api';
 
 const AuthContext = createContext();
 
@@ -10,116 +10,92 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const token = getAuthToken();
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
       if (token) {
         try {
-          setAuthToken(token); // Set token for API calls
+          setAuthToken(token);
           const response = await api.getUserProfile();
-          const userData = response.data;
-          
-          if (userData && userData.token) {
-            // Update token if a new one is provided
-            setAuthToken(userData.token);
-            setUser(userData);
-          } else {
-            removeAuthToken();
-          }
+          console.log('User profile:', response); // Debug log
+          setUser(response);
         } catch (error) {
-          console.error('Error initializing auth:', error);
-          removeAuthToken();
-          setUser(null);
+          console.error('Error restoring auth state:', error);
+          localStorage.removeItem('token');
+          setAuthToken(null);
         }
       }
       setLoading(false);
     };
 
-    initAuth();
+    initializeAuth();
   }, []);
-
-  const fetchUserProfile = async () => {
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('No auth token');
-      }
-
-      const response = await api.getUserProfile();
-      const userData = response.data;
-      
-      if (userData) {
-        setUser({ ...userData, token });
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      if (error.response?.status === 401) {
-        removeAuthToken();
-        setUser(null);
-        toast.error('Session expired. Please login again.');
-      }
-    }
-  };
 
   const login = async (email, password) => {
     try {
       const response = await api.loginUser(email, password);
-      const userData = response.data;
+      console.log('Login response:', response); // Debug log
       
-      if (!userData || !userData.token) {
-        throw new Error('Invalid response from server');
+      // Check if we have a valid response with token
+      if (response?.data?.token) {
+        const token = response.data.token;
+        const userData = response.data.user || response.data; // Fallback if user data is in root
+        
+        localStorage.setItem('token', token);
+        setAuthToken(token);
+        setUser(userData);
+        return userData;
+      } else {
+        console.error('Invalid login response:', response);
+        throw new Error('Invalid login credentials');
       }
-
-      setAuthToken(userData.token);
-      setUser(userData);
-      
-      toast.success('Login successful!');
-      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      const message = error.response?.data?.message || 'Login failed';
-      toast.error(message);
-      return { success: false, error: message };
+      throw error;
     }
   };
 
   const register = async (userData) => {
     try {
-      await api.registerUser({
-        email: userData.email,
-        password: userData.password,
-        phone: userData.phone,
-        role: userData.role
-      });
-
-      toast.success('Registration successful! Please login.');
-      return { success: true };
+      const response = await api.registerUser(userData);
+      if (response?.token) {
+        localStorage.setItem('token', response.token);
+        setAuthToken(response.token);
+        setUser(response);
+        return response;
+      }
+      throw new Error('Registration failed');
     } catch (error) {
       console.error('Registration error:', error);
-      const message = error.response?.data?.message || 'Registration failed';
-      toast.error(message);
-      return { success: false, error: message };
+      throw error;
     }
   };
 
   const logout = () => {
-    removeAuthToken();
+    localStorage.removeItem('token');
+    setAuthToken(null);
     setUser(null);
-    toast.success('Logged out successfully');
   };
 
+  const value = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    isAuthenticated: !!user,
+    isSeller: user?.role?.toUpperCase() === 'SELLER',
+    isBuyer: user?.role?.toUpperCase() === 'BUYER'
+  };
+
+  console.log('Auth context value:', value);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        loading, 
-        login, 
-        register, 
-        logout,
-        isAuthenticated: !!user,
-        isSeller: user?.role === 'SELLER'
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

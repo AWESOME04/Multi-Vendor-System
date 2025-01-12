@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import * as api from '@/services/api';
+import ProductCard from '@/components/ProductCard/ProductCard';
 import './SellerProductsView.css';
 
 const SellerProductsView = () => {
@@ -10,17 +11,25 @@ const SellerProductsView = () => {
   const { user, isSeller } = useAuth();
 
   useEffect(() => {
+    console.log('SellerProductsView:', {
+      user,
+      isSeller,
+      role: user?.role
+    });
+
     if (!isSeller) {
+      console.log('Not a seller, redirecting...');
       window.location.href = '/';
       return;
     }
     
     fetchSellerProducts();
-  }, [isSeller]);
+  }, [isSeller, user]);
 
   const fetchSellerProducts = async () => {
     try {
       const { data } = await api.getSellerProducts();
+      console.log('Fetched seller products:', data);
       setProducts(data);
     } catch (error) {
       console.error('Error fetching seller products:', error);
@@ -30,6 +39,21 @@ const SellerProductsView = () => {
     }
   };
 
+  const handleProductUpdated = (updatedProduct) => {
+    setProducts(prevProducts => 
+      prevProducts.map(product => 
+        product._id === updatedProduct._id ? updatedProduct : product
+      )
+    );
+    toast.success('Product updated successfully');
+  };
+
+  const handleProductDeleted = (deletedProductId) => {
+    setProducts(prevProducts => 
+      prevProducts.filter(product => product._id !== deletedProductId)
+    );
+  };
+
   if (loading) {
     return <div className="loading">Loading your products...</div>;
   }
@@ -37,26 +61,28 @@ const SellerProductsView = () => {
   return (
     <div className="seller-products">
       <h1>My Products</h1>
+      <div className="debug-info" style={{ background: '#f5f5f5', padding: '10px', margin: '10px 0' }}>
+        <pre>
+          {JSON.stringify({
+            userEmail: user?.email,
+            userRole: user?.role,
+            isSeller,
+            productsCount: products.length
+          }, null, 2)}
+        </pre>
+      </div>
+      
       {products.length === 0 ? (
         <p className="no-products">You haven't added any products yet.</p>
       ) : (
         <div className="products-grid">
           {products.map(product => (
-            <div key={product.id} className="product-card">
-              <img 
-                src={product.image_url} 
-                alt={product.title} 
-                className="product-image"
-              />
-              <div className="product-info">
-                <h3>{product.title}</h3>
-                <p className="description">{product.description}</p>
-                <div className="details">
-                  <span className="price">${product.price}</span>
-                  <span className="stock">Stock: {product.stock_quantity}</span>
-                </div>
-              </div>
-            </div>
+            <ProductCard
+              key={product._id}
+              product={product}
+              onProductUpdated={handleProductUpdated}
+              onProductDeleted={handleProductDeleted}
+            />
           ))}
         </div>
       )}

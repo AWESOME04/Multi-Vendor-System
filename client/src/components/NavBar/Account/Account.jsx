@@ -1,59 +1,42 @@
 import { useState } from 'react';
-import { FaShoppingCart, FaUser } from 'react-icons/fa';
-import { useGlobalContext } from '@/components/GlobalContext/GlobalContext';
-import { useAuth } from '@/context/AuthContext';
+import { FaUser } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import LoginModal from '@/components/Auth/LoginModal';
 import RegisterModal from '@/components/Auth/RegisterModal';
 import AddProductModal from '@/components/Products/AddProductModal';
+import { useAuth } from '@/context/AuthContext';
 import './Account.css';
 
 const Account = () => {
-  const store = useGlobalContext();
-  const { user, logout } = useAuth();
-  const cartTotal = store.state.cartQuantity;
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
   };
 
-  const handleProductAdded = (newProduct) => {
-    // Refresh products list
-    store.getProducts();
+  const handleProductAdded = () => {
+    setShowAddProduct(false);
+    // Refresh products if needed
   };
 
   return (
-    <div className="account" style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-      {user?.role === 'buyer' && (
-        <div className="cart">
-          <Link to="/cart">
-            <span className="account-details">
-              <FaShoppingCart />
-              <span className="items-in-cart">{cartTotal}</span>
-            </span>
-          </Link>
-        </div>
-      )}
-
+    <div className="account">
       {user ? (
         <div className="user-menu">
           <button onClick={() => setShowUserMenu(!showUserMenu)} className="user-button">
-            <FaUser /> {user.name}
+            <FaUser /> {user.email}
           </button>
           {showUserMenu && (
             <div className="user-menu-content">
               <Link to="/profile" className="user-menu-item">View Profile</Link>
-              {/* {user.role === 'buyer' && (
-                // <Link to="/orders" className="user-menu-item">My Orders</Link>
-              )} */}
-              {user.role === 'SELLER' && (
+              {user.role?.toUpperCase() === 'SELLER' ? (
                 <>
-                  <Link to="/seller/products" className="user-menu-item">View Products</Link>
+                  <Link to="/seller/products" className="user-menu-item">My Products</Link>
                   <button 
                     onClick={() => {
                       setShowAddProduct(true);
@@ -63,6 +46,11 @@ const Account = () => {
                   >
                     Add Product
                   </button>
+                </>
+              ) : (
+                <>
+                  {/* <Link to="/orders" className="user-menu-item">My Orders</Link> */}
+                  <Link to="/cart" className="user-menu-item">Cart</Link>
                 </>
               )}
               <button onClick={handleLogout} className="user-menu-item">Logout</button>

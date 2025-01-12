@@ -16,9 +16,21 @@ const LoginModal = ({ onClose, switchToRegister }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login(formData.email, formData.password);
-    if (result.success) {
-      onClose();
+    try {
+      const userData = await login(formData.email, formData.password);
+      if (userData) {
+        toast.success('Login successful!');
+        onClose(); // Close the modal
+        // Use navigate instead of window.location for smoother navigation
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error(
+        error.message || 
+        error.response?.data?.message || 
+        'Login failed. Please try again.'
+      );
     }
   };
 

@@ -12,6 +12,8 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
   });
 
   const { register } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,19 +21,39 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
 
-    const result = await register({
-      email: formData.email,
-      password: formData.password,
-      phone: formData.phone,
-      role: formData.role
-    });
+    // Validate form data
+    if (!formData.email || !formData.password || !formData.phone) {
+      setError('All fields are required');
+      setLoading(false);
+      return;
+    }
 
-    if (result.success) {
-      toast.success('Registration successful! Please login.');
-      switchToLogin();
-    } else {
-      toast.error(result.error);
+    try {
+      const result = await register({
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        role: formData.role || 'BUYER'  // Ensure role is set
+      });
+      
+      if (result.success) {
+        toast.success('Registration successful! You are now logged in.');
+        onClose();
+      }
+    } catch (error) {
+      // Show a more user-friendly error message
+      const errorMessage = error.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      
+      // Only show toast for non-validation errors
+      if (!errorMessage.includes('required')) {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,7 +103,14 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               <option value="SELLER">Seller</option>
             </select>
           </div>
-          <button type="submit" className="auth-button">Register</button>
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+          <button 
+            type="submit" 
+            className="auth-button"
+            disabled={loading}
+          >
+            {loading ? 'Registering...' : 'Register'}
+          </button>
         </form>
         <p>
           Already have an account?{' '}

@@ -17,13 +17,14 @@ export const API_ENDPOINTS = {
     
     // Shopping Service
     CART: `${SHOPPING_SERVICE}/cart`,
-    ORDERS: `${SHOPPING_SERVICE}/orders`
+    ORDERS: `${SHOPPING_SERVICE}/orders`,
+    CREATE_ORDER: `${SHOPPING_SERVICE}/orders`
 };
 
 // Create axios instances for each service
 export const userApi = axios.create({
     baseURL: USER_SERVICE,
-    timeout: 5000,
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json'
     }
@@ -31,7 +32,7 @@ export const userApi = axios.create({
 
 export const productApi = axios.create({
     baseURL: PRODUCT_SERVICE,
-    timeout: 5000,
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json'
     }
@@ -39,34 +40,24 @@ export const productApi = axios.create({
 
 export const shoppingApi = axios.create({
     baseURL: SHOPPING_SERVICE,
-    timeout: 5000,
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json'
     }
 });
 
+// Add auth token to requests
+const addAuthToken = (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+};
+
 // Add request interceptor to all instances
 [userApi, productApi, shoppingApi].forEach(api => {
-    api.interceptors.request.use(
-        config => {
-            const token = getAuthToken();
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        error => Promise.reject(error)
-    );
-
-    api.interceptors.response.use(
-        response => response,
-        error => {
-            if (error.response?.status === 401) {
-                removeAuthToken();
-            }
-            return Promise.reject(error);
-        }
-    );
+    api.interceptors.request.use(addAuthToken);
 });
 
 export const setAuthToken = (token) => {
@@ -74,6 +65,11 @@ export const setAuthToken = (token) => {
         localStorage.setItem('token', token);
         [userApi, productApi, shoppingApi].forEach(api => {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        });
+    } else {
+        localStorage.removeItem('token');
+        [userApi, productApi, shoppingApi].forEach(api => {
+            delete api.defaults.headers.common['Authorization'];
         });
     }
 };
@@ -89,4 +85,4 @@ export const getAuthToken = () => {
     return localStorage.getItem('token');
 };
 
-export default userApi; // Default export for backward compatibility
+export default userApi;

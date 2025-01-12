@@ -12,23 +12,24 @@ const Order = () => {
       <div className="view-order">
         <div className="order-title">
           <h2>Order</h2>
-          <h2>{store.state.cartQuantity} Items</h2>
+          <h2>{store.state.cart.length} Items</h2>
         </div>
         <div className="order-container">
-          {(store.state.cart.length > 0 &&
-            store.state.cart.map((product) => {
-              return (
-                <OrderDetails
-                  key={product._id}
-                  product={product}
-                ></OrderDetails>
-              );
-            })) || <EmptyState></EmptyState>}
+          {store.state.cart.length > 0 ? (
+            store.state.cart.map((product) => (
+              <OrderDetails
+                key={product.productId}
+                product={product}
+              />
+            ))
+          ) : (
+            <EmptyState />
+          )}
         </div>
       </div>
       <div className="order-summary">
         <h2>Order Summary</h2>
-        <OrderSummary></OrderSummary>
+        <OrderSummary />
       </div>
     </div>
   );
