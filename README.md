@@ -38,6 +38,15 @@ The frontend interacts with the backend microservices via an API Gateway, ensuri
 
 ![Image](https://github.com/user-attachments/assets/0a02303d-9552-4cfb-a0c3-6fb63e592010)
 
+## System Architecture
+
+The frontend interacts with the backend via an **API Gateway**, enabling communication with multiple microservices. These include:
+
+- **Authentication Service**: [GitHub Repo](https://github.com/AWESOME04/Auth-Service) | [Deployed](https://auth-service-rbc3.onrender.com)
+- **Product Service**: [GitHub Repo](https://github.com/AWESOME04/Product-Service) | [Deployed](https://product-service-qwti.onrender.com)
+- **Order Service**: [GitHub Repo](https://github.com/AWESOME04/Order-Service) | [Deployed](https://order-service-uag9.onrender.com)
+- **Notification Service**: [GitHub Repo](https://github.com/AWESOME04/Notification-Service) | [Deployed](https://notification-service-lpes.onrender.com)
+
 ## Installation and Setup
 
 ### Prerequisites
