@@ -1,128 +1,95 @@
-# Multi-Vendor Platform
+# Multi-Vendor Platform - Frontend
 
-Welcome to the Multi-Vendor Platform project! This project involves developing a web-based multi-vendor platform where sellers can list their products, and users can search for items and place orders. The system is built using a microservices architecture, ensuring scalability and extensibility.
+![Image](https://github.com/user-attachments/assets/790d36e2-ba0a-421e-af0d-41a782a794ff)
 
-## Project Overview
+The **Multi-Vendor Platform** frontend is a responsive and user-friendly web application that enables users to browse, search seamlessly, and purchase products listed by multiple sellers. This platform prioritizes scalability, intuitive navigation, and an engaging user experience.
 
-The platform comprises the following core functionalities:
+## Features
 
-- Sellers can register, log in, and upload items for sale.
-- Users can search for items, view details, and place orders.
-- Notifications (email, SMS, push, etc.) are sent to sellers and users for key events.
+- **User Account Management**:
+  - Secure login and registration using JWT-based authentication.
+  - Role-based access control for buyers and sellers.
+  
+- **Product Management**:
+  - Sellers can list, edit, and manage their products.
+  - Buyers can browse categories, search for items, and view detailed product pages.
+  
+- **Shopping and Orders**:
+  - Add items to a cart and proceed to checkout.
+  - View order history and status updates.
+  
+- **Notifications**:
+  - Real-time notifications for events like order confirmations and updates.
+  
+- **Search and Filters**:
+  - Advanced search functionality with category and price filters for an optimal user experience.
 
-The system is designed as a modular application with the following microservices:
+## Technology Stack
 
-1. **Authentication Service**: Handles user registration, login, and role-based access.
-2. **Product Service**: Manages product listings and search functionality.
-3. **Search Service**: Provides advanced item search capabilities.
-4. **Order Service**: Handles order placement and processing.
-5. **Notification Service**: Sends notifications via email and other channels.
+- **React.js**: Frontend framework for building the user interface.
+- **Custom CSS**: Styling for a responsive and visually appealing design.
+- **REST APIs**: Communication with backend services.
 
-## System Architecture
+## System Overview
 
-The platform uses a microservices architecture, with each service operating independently. The services communicate using RabbitMQ/Kafka message queues and are exposed via an API Gateway.
+The frontend interacts with the backend microservices via an API Gateway, ensuring a decoupled and scalable architecture. It supports efficient state management for consistent and synchronized data across components.
 
-![System Architecture](system-architecture-diagram.png)
+### High-Level Architecture
 
-## Database Structures
+![Image](https://github.com/user-attachments/assets/0a02303d-9552-4cfb-a0c3-6fb63e592010)
 
-Each microservice has its own database schema:
-
-- **Authentication Service**: 
-  - `Users` table: `user_id`, `email`, `password_hash`, `roles`, etc.
-
-- **Product Service**: 
-  - `Products` table: `product_id`, `seller_id`, `title`, `description`, `price`, `image_url`, `stock_quantity`, etc.
-
-- **Order Service**: 
-  - `Orders` table: `order_id`, `user_id`, `product_id`, `order_status`, `timestamp`, etc.
-
-## Message Queues and Payloads
-
-- **Order_Placed Queue**:
-  - Payload Example:
-    ```json
-    {
-      "order_id": "12345",
-      "user_id": "67890",
-      "product_ids": ["101", "102"],
-      "total_price": 49.99,
-      "timestamp": "2024-12-05T10:30:00Z"
-    }
-    ```
-
-- **Notification Queue**:
-  - Payload Example:
-    ```json
-    {
-      "event": "send_email",
-      "recipient": "user@example.com",
-      "subject": "Order Confirmation",
-      "message": "Your order #12345 has been placed."
-    }
-    ```
-
-## External APIs
-
-- **Email Notification Service**: Integrate with providers like SendGrid, Mailgun, or Amazon SES for sending emails.
-
-## Repositories
-
-Each microservice has its own GitHub repository:
-
-- [Authentication Service](#)
-- [Product Service](#)
-- [Search Service](#)
-- [Order Service](#)
-- [Notification Service](#)
-
-## Setup Instructions
+## Installation and Setup
 
 ### Prerequisites
 
-- Node.js
-- Docker
-- PostgreSQL/MySQL
-- RabbitMQ/Kafka
+Ensure the following are installed on your system:
+- **Node.js**: JavaScript runtime environment.
+- **npm**: Package manager for handling dependencies.
 
-### Getting Started
+### Steps to Run Locally
 
-1. Clone the repository for each microservice.
-2. Set up environment variables using `.env` files.
-3. Install dependencies:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/AWESOME04/Multi-Vendor-System.git
+   cd client
+   ```
+2. Install dependencies:
    ```bash
    npm install
    ```
-4. Run the services locally:
+3. Set up environment variables:
+   - Create a `.env` file in the project root.
+   - Add the necessary variables (refer to `.env.example`).
+4. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
-5. Deploy services using Docker Compose (if applicable).
+   The application will be available at `http://localhost:5173`.
 
-### API Documentation
+## Deployment
 
-Use Swagger or Postman to explore the available endpoints. Import the provided `postman_collection.json` to view all endpoints in Postman.
-
-## Testing and Deployment
-
-1. Run unit tests for each service:
+1. Build the production-ready app:
    ```bash
-   npm test
+   npm run build
    ```
-2. Deploy services to your preferred hosting platform (e.g., AWS, Azure, or GCP).
+2. Deploy the app using hosting platforms like Vercel, Netlify, or AWS Amplify:
+   - Example: The platform is currently deployed at [Multi-Vendor System](https://multi-vendor-system.vercel.app/).
+
+## API Integration
+
+The application communicates with backend services for functionalities such as authentication, product management, and order handling. For API documentation, refer to the provided Postman collection.
 
 ## Contributing
 
-Follow the branching strategy for collaboration:
+- Follow Git branching strategies:
+  - **`main`**: Stable production code.
+  - **`develop`**: Latest development updates.
+  - **`feature/<feature-name>`**: Specific feature development.
+- Before submitting a pull request, ensure all changes are tested.
 
-- `main`: Production-ready code.
-- `develop`: Integration branch.
-- `feature/<feature-name>`: Feature development.
+## Screenshots
 
-## License
+![Product Details](https://github.com/user-attachments/assets/8ffe9515-8678-459e-9b10-20784a92f702)
 
-This project is licensed under the MIT License.
 
----
-
-**Deadline Reminder**: Submit Task 1 deliverables, including your database structures, message payloads, APIs, and system architecture, by **9th December 2024**.
+![Cart Page](https://github.com/user-attachments/assets/d0773bde-ec4c-4f3f-b687-a22ef5c3bc07)
