@@ -35,19 +35,34 @@ const CartView = () => {
     try {
       setLoading(true);
       const orderData = {
+        customerId: user._id,
         items: store.state.cart.map(item => ({
-          productId: item._id,
+          productId: item.productId || item._id,
+          name: item.name,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          image: item.image
         })),
         total: calculateTotal()
       };
 
-      await axios.post('http://localhost:3000/api/orders', orderData);
-      store.clearCart();
-      toast.success('Order placed successfully!');
-      navigate('/orders');
+      console.log('Sending order data:', orderData);
+
+      const response = await axios.post('https://order-service-uag9.onrender.com/orders', orderData, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+
+      console.log('Order response:', response.data);
+      
+      if (response.data) {
+        await store.clearCart();
+        toast.success('Order placed successfully!');
+        navigate('/orders');
+      }
     } catch (error) {
+      console.error('Order error:', error);
       toast.error(error.response?.data?.message || 'Failed to place order');
     } finally {
       setLoading(false);

@@ -5,7 +5,7 @@ import { useGlobalContext } from "@/components/GlobalContext/GlobalContext";
 
 import "./Order.css";
 
-const Order = () => {
+const Order = ({ handleQuantityChange, handleRemoveItem, calculateTotal, handlePlaceOrder, loading }) => {
   let store = useGlobalContext();
   return (
     <div className="main-order-container">
@@ -20,6 +20,8 @@ const Order = () => {
               <OrderDetails
                 key={product.productId}
                 product={product}
+                handleRemoveItem={handleRemoveItem}
+                handleQuantityChange={handleQuantityChange}
               />
             ))
           ) : (
@@ -29,7 +31,11 @@ const Order = () => {
       </div>
       <div className="order-summary">
         <h2>Order Summary</h2>
-        <OrderSummary />
+        <OrderSummary 
+          calculateTotal={calculateTotal}
+          handlePlaceOrder={handlePlaceOrder}
+          loading={loading}
+        />
       </div>
     </div>
   );

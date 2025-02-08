@@ -59,3 +59,15 @@ button:disabled:hover {
   background-color: #aaa;
   cursor: not-allowed;
 }
+
+.increase-quantity button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #ccc;
+}
+
+.increase-quantity button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #ccc;
+}

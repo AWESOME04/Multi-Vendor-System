@@ -1,0 +1,21 @@
+.product-card button.in-cart {
+  background-color: #4CAF50;
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.product-card button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.product-card button.in-cart:hover {
+  background-color: #4CAF50;
+  transform: none;
+}
+
+/* Optional: Add a checkmark icon for items in cart */
+.product-card button.in-cart::before {
+  content: "✓";
+  margin-right: 5px;
+} 

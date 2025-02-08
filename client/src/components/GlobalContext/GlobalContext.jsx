@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from "react";
+import { createContext, useContext, useReducer, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from '../../services/api';
 
@@ -41,6 +41,24 @@ const reducer = (state, action) => {
         ...state,
         cartQuantity: action.payload
       };
+    case "UPDATE_CART_ITEM":
+      const updatedCart = state.cart.map(item => 
+        item.productId === action.payload.productId 
+          ? { ...item, quantity: action.payload.quantity }
+          : item
+      );
+      return {
+        ...state,
+        cart: updatedCart,
+        cartQuantity: updatedCart.length
+      };
+    case "REMOVE_CART_ITEM":
+      const filteredCart = state.cart.filter(item => item.productId !== action.payload);
+      return {
+        ...state,
+        cart: filteredCart,
+        cartQuantity: filteredCart.length
+      };
     default:
       return state;
   }
@@ -48,6 +66,9 @@ const reducer = (state, action) => {
 
 const GlobalContextProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Add a Set to track removed items
+  const [removedItems] = useState(new Set());
 
   useEffect(() => {
     getProducts();
@@ -83,27 +104,23 @@ const GlobalContextProvider = ({ children }) => {
 
   const getCart = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user || user.role?.toLowerCase() !== 'buyer') {
-        dispatch({ type: "GET_CART", payload: { items: [] } });
-        return;
-      }
-
       const response = await api.getCart();
-      console.log('Get cart response:', response);
+      if (response?.data) {
+        // Filter out any removed items
+        const filteredItems = response.data.items?.filter(
+          item => !removedItems.has(item.productId)
+        ) || [];
 
-      if (response && response.data) {
         dispatch({ 
           type: "GET_CART", 
           payload: {
-            items: response.data.items || [],
-            total: response.data.total || 0
+            items: filteredItems,
+            total: response.data.total
           }
         });
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
-      dispatch({ type: "GET_CART", payload: { items: [] } });
     }
   };
 
@@ -114,6 +131,14 @@ const GlobalContextProvider = ({ children }) => {
         toast.error('Please login to add items to cart');
         return;
       }
+
+      // Check if item was previously removed
+      const productId = product.id || product._id;
+      if (removedItems.has(productId)) {
+        // Clear from removed items set
+        removedItems.delete(productId);
+      }
+
       if (user.role.toLowerCase() !== 'buyer') {
         toast.error('Only buyers can add items to cart');
         return;
@@ -167,51 +192,46 @@ const GlobalContextProvider = ({ children }) => {
     }
   };
 
-  const updateQuantity = async (productId, newQuantity) => {
+  const updateCartItemQuantity = async (productId, quantity) => {
     try {
-      if (!productId) {
-        throw new Error('Product ID is required');
-      }
-
-      const response = await api.updateCartQuantity(productId, newQuantity);
-      if (response?.items) {
-        dispatch({ type: "GET_CART", payload: response });
-        toast.success('Cart updated');
-      }
+      dispatch({
+        type: "UPDATE_CART_ITEM",
+        payload: { productId, quantity }
+      });
     } catch (error) {
       console.error('Error updating quantity:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to update quantity';
-      toast.error(errorMessage);
-      getCart(); // Refresh cart state
+      toast.error('Failed to update quantity');
     }
   };
 
   const addQuantity = (productId) => {
     const item = state.cart.find(item => item.productId === productId);
     if (item) {
-      updateQuantity(productId, item.quantity + 1);
+      updateCartItemQuantity(productId, item.quantity + 1);
     }
   };
 
   const reduceQuantity = (productId) => {
     const item = state.cart.find(item => item.productId === productId);
     if (item && item.quantity > 1) {
-      updateQuantity(productId, item.quantity - 1);
+      updateCartItemQuantity(productId, item.quantity - 1);
     }
   };
 
-  const removeFromCart = async (productId) => {
+  const removeFromCart = (productId) => {
     try {
-      const response = await api.removeFromCart(productId);
-      if (response?.items) {
-        dispatch({ type: "GET_CART", payload: response });
-        toast.success('Item removed from cart');
-      }
+      // Add to removed items set
+      removedItems.add(productId);
+
+      dispatch({
+        type: "REMOVE_CART_ITEM",
+        payload: productId
+      });
+      
+      toast.success('Item removed from cart');
     } catch (error) {
-      console.error('Error removing item:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove item';
-      toast.error(errorMessage);
-      getCart(); // Refresh cart state
+      console.error('Error removing from cart:', error);
+      toast.error('Failed to remove item');
     }
   };
 
@@ -253,7 +273,8 @@ const GlobalContextProvider = ({ children }) => {
     reduceQuantity,
     removeFromCart,
     clearCart,
-    createOrder
+    createOrder,
+    updateCartItemQuantity
   };
 
   return (
