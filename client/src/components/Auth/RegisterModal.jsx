@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import './Auth.css';
+import Spinner from '../common/Spinner';
 
 const RegisterModal = ({ onClose, switchToLogin }) => {
   const [formData, setFormData] = useState({
@@ -12,7 +13,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
   });
 
   const { register } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
@@ -22,12 +23,12 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setIsLoading(true);
 
     // Validate form data
     if (!formData.email || !formData.password || !formData.phone) {
       setError('All fields are required');
-      setLoading(false);
+      setIsLoading(false);
       return;
     }
 
@@ -53,7 +54,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
         toast.error(errorMessage);
       }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -70,6 +71,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={isLoading}
             />
           </div>
           <div className="form-group">
@@ -80,6 +82,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={isLoading}
             />
           </div>
           <div className="form-group">
@@ -90,6 +93,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               value={formData.phone}
               onChange={handleChange}
               required
+              disabled={isLoading}
             />
           </div>
           <div className="form-group">
@@ -98,6 +102,7 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
               value={formData.role}
               onChange={handleChange}
               className="role-select"
+              disabled={isLoading}
             >
               <option value="BUYER">Buyer</option>
               <option value="SELLER">Seller</option>
@@ -107,18 +112,33 @@ const RegisterModal = ({ onClose, switchToLogin }) => {
           <button 
             type="submit" 
             className="auth-button"
-            disabled={loading}
+            disabled={isLoading}
           >
-            {loading ? 'Registering...' : 'Register'}
+            {isLoading ? (
+              <>
+                <Spinner />
+                Registering...
+              </>
+            ) : (
+              'Register'
+            )}
           </button>
         </form>
         <p>
           Already have an account?{' '}
-          <button className="switch-auth" onClick={switchToLogin}>
+          <button 
+            className="switch-auth" 
+            onClick={switchToLogin}
+            disabled={isLoading}
+          >
             Login
           </button>
         </p>
-        <button className="close-button" onClick={onClose}>
+        <button 
+          className="close-button" 
+          onClick={onClose}
+          disabled={isLoading}
+        >
           ×
         </button>
       </div>

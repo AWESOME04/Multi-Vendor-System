@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import './Auth.css';
+import Spinner from '../common/Spinner';
 
 const LoginModal = ({ onClose, switchToRegister }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
   const handleChange = (e) => {
@@ -16,12 +18,13 @@ const LoginModal = ({ onClose, switchToRegister }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    
     try {
       const userData = await login(formData.email, formData.password);
       if (userData) {
         toast.success('Login successful!');
-        onClose(); // Close the modal
-        // Use navigate instead of window.location for smoother navigation
+        onClose();
         window.location.href = '/';
       }
     } catch (error) {
@@ -31,6 +34,8 @@ const LoginModal = ({ onClose, switchToRegister }) => {
         error.response?.data?.message || 
         'Login failed. Please try again.'
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -47,6 +52,7 @@ const LoginModal = ({ onClose, switchToRegister }) => {
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={isLoading}
             />
           </div>
           <div className="form-group">
@@ -57,17 +63,39 @@ const LoginModal = ({ onClose, switchToRegister }) => {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={isLoading}
             />
           </div>
-          <button type="submit" className="auth-button">Login</button>
+          <button 
+            type="submit" 
+            className="auth-button"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Spinner />
+                Logging in...
+              </>
+            ) : (
+              'Login'
+            )}
+          </button>
         </form>
         <p>
           Don't have an account?{' '}
-          <button className="switch-auth" onClick={switchToRegister}>
+          <button 
+            className="switch-auth" 
+            onClick={switchToRegister}
+            disabled={isLoading}
+          >
             Register
           </button>
         </p>
-        <button className="close-button" onClick={onClose}>
+        <button 
+          className="close-button" 
+          onClick={onClose}
+          disabled={isLoading}
+        >
           ×
         </button>
       </div>
