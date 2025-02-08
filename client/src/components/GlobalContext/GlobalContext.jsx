@@ -132,11 +132,14 @@ const GlobalContextProvider = ({ children }) => {
         return;
       }
 
-      // Check if item was previously removed
-      const productId = product.id || product._id;
-      if (removedItems.has(productId)) {
-        // Clear from removed items set
-        removedItems.delete(productId);
+      // Check if item is already in cart
+      const isInCart = state.cart.some(
+        item => String(item.productId) === String(product.id)
+      );
+
+      if (isInCart) {
+        toast.info('Item is already in your cart');
+        return;
       }
 
       if (user.role.toLowerCase() !== 'buyer') {
@@ -144,27 +147,16 @@ const GlobalContextProvider = ({ children }) => {
         return;
       }
 
-      // Make sure we have all required fields
-      if (!product.id && !product._id) {
+      // Ensure we have a valid productId
+      if (!product.id) {
         console.error('Missing product ID:', product);
         toast.error('Invalid product data');
         return;
       }
 
-      const cartItem = {
-        id: product.id || product._id,
-        name: product.name,
-        price: parseFloat(product.price),
-        quantity: product.quantity || 1,
-        image: product.img || product.image
-      };
+      const response = await api.addToCart(product);
 
-      console.log('Sending to API:', cartItem);
-      const response = await api.addToCart(cartItem);
-      console.log('Cart response:', response);
-
-      if (response && response.data) {
-        // Update the cart state with the new data
+      if (response?.data) {
         dispatch({ 
           type: "GET_CART", 
           payload: {
@@ -173,22 +165,12 @@ const GlobalContextProvider = ({ children }) => {
           }
         });
         
-        // Update cart quantity
-        dispatch({
-          type: "SET_CART_QUANTITY",
-          payload: response.data.items ? response.data.items.length : 0
-        });
-
         toast.success('Item added to cart');
-        
-        // Refresh cart data
         await getCart();
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      if (!error.message?.includes('Only buyers')) {
-        toast.error(error.message || 'Failed to add item to cart');
-      }
+      toast.error(error.response?.data?.message || 'Failed to add item to cart');
     }
   };
 

@@ -6,16 +6,34 @@ import './Product.css';
 const Product = ({ product }) => {
   const store = useGlobalContext();
   
-  const isInCart = store.state.cart.some(
-    item => item.productId === product.id || item.productId === product._id
-  );
+  // Log to debug
+  console.log('Cart items:', store.state.cart);
+  console.log('Current product:', product);
+  
+  const isInCart = store.state.cart.some(cartItem => {
+    // Log to debug
+    console.log('Comparing:', {
+      cartItemId: cartItem.productId,
+      productId: product.id,
+      match: cartItem.productId === product.id
+    });
+    
+    return String(cartItem.productId) === String(product.id);
+  });
 
   const handleAddToCart = async (product) => {
     if (isInCart) {
       toast.info('Item is already in your cart');
       return;
     }
-    await store.addToCart(product);
+    try {
+      await store.addToCart({
+        ...product,
+        id: product.id // Ensure id is set correctly
+      });
+    } catch (error) {
+      toast.error('Failed to add item to cart');
+    }
   };
 
   return (

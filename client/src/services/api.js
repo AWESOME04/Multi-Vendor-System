@@ -1,5 +1,6 @@
 import api, { API_ENDPOINTS, productApi, orderApi, notificationApi } from '../config/api';
 import { uploadImage } from '../config/cloudinary';
+import axios from 'axios';
 
 // Auth Service
 export const loginUser = async (email, password) => {
@@ -153,37 +154,27 @@ export const getCart = async () => {
     return response;
 };
 
-export const addToCart = async (productData) => {
+export const addToCart = async (product) => {
+  try {
     const user = JSON.parse(localStorage.getItem('user'));
-    console.log('Product Data received:', productData);
-    
-    if (!user) {
-        throw new Error('Please login to add items to cart');
-    }
-    
-    const role = user.role?.toLowerCase();
-    if (role !== 'buyer') {
-        throw new Error('Only buyers can add to cart');
-    }
+    const cartData = {
+      customerId: user._id,
+      productId: product.id,
+      name: product.name,
+      price: parseFloat(product.price),
+      quantity: product.quantity || 1,
+      image: product.image || product.img
+    };
 
-    try {
-        const cartData = {
-            customerId: user.id,
-            productId: productData.id,
-            name: productData.name,
-            price: parseFloat(productData.price),
-            quantity: productData.quantity || 1,
-            image: productData.image || ''
-        };
-        
-        console.log('Sending cart data:', cartData);
-        const response = await orderApi.post(API_ENDPOINTS.CART, cartData);
-        console.log('Cart response:', response);
-        return response;
-    } catch (error) {
-        console.error('Cart error details:', error.response?.data);
-        throw error;
-    }
+    console.log('Product Data received:', product);
+    console.log('Sending cart data:', cartData);
+
+    const response = await orderApi.post(API_ENDPOINTS.CART, cartData);
+    return response;
+  } catch (error) {
+    console.error('Cart error details:', error.response?.data);
+    throw error;
+  }
 };
 
 export const getOrders = async () => {

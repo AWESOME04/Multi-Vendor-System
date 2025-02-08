@@ -5,6 +5,7 @@ import Products from "@/components/Home/Products/Products";
 import Benefits from "@/components/Home/Benefits/Benefits";
 import { useState } from 'react';
 import PlaceholderImg from '../assets/images/placeholder-img.png';
+import Product from '@/components/Product/Product';
 
 function HomeView() {
   const [loading, setLoading] = useState(false);
@@ -29,16 +30,10 @@ function HomeView() {
         <section className="products-section">
           <Products>
             {({ products }) => products.map((product) => (
-              <div key={product.id}>
-                <img 
-                  src={product.image_url || PlaceholderImg} 
-                  alt={product.title}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = PlaceholderImg;
-                  }}
-                />
-              </div>
+              <Product 
+                key={product.id} 
+                product={product}
+              />
             ))}
           </Products>
         </section>

@@ -52,8 +52,11 @@ export const productApi = axios.create({
 });
 
 export const orderApi = axios.create({
-    ...defaultConfig,
-    baseURL: ORDER_SERVICE_URL
+    baseURL: import.meta.env.VITE_ORDER_SERVICE_URL || 'https://order-service-uag9.onrender.com',
+    timeout: 10000,
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
 
 export const notificationApi = axios.create({
@@ -126,5 +129,19 @@ export const removeAuthToken = () => {
 export const getAuthToken = () => {
     return localStorage.getItem('token');
 };
+
+// Add request interceptor to add auth token
+orderApi.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
 
 export default api;
