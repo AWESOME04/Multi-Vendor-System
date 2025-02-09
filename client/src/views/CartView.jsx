@@ -26,7 +26,7 @@ const CartView = () => {
     return store.state.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentReference) => {
     if (!user) {
       toast.error('Please login to place an order');
       return;
@@ -43,7 +43,8 @@ const CartView = () => {
           price: item.price,
           image: item.image
         })),
-        total: calculateTotal()
+        total: calculateTotal(),
+        paymentReference: paymentReference
       };
 
       console.log('Sending order data:', orderData);

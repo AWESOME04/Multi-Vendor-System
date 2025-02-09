@@ -133,6 +133,11 @@
   cursor: not-allowed;
 }
 
+.checkout-button.processing {
+  background-color: #4CAF50;
+  cursor: wait;
+}
+
 .checkout {
   padding: 0.8rem 1.5rem;
   width: 100%;

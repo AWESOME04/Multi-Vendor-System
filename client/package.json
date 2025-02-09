@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paystack/inline-js": "^2.22.2",
     "axios": "^1.7.9",
     "cloudinary": "^2.5.1",
     "cloudinary-react": "^1.8.1",
