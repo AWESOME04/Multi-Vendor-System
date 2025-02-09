@@ -4,6 +4,8 @@ import { productApi } from '@/config/api';
 import { toast } from 'react-toastify';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import ConfirmModal from '../common/ConfirmModal';
+import EditProductModal from './EditProductModal';
+import { updateProduct } from '@/services/api';
 import './SellerProducts.css';
 
 const SellerProducts = () => {
@@ -11,6 +13,7 @@ const SellerProducts = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -37,8 +40,21 @@ const SellerProducts = () => {
 
   const handleEdit = (product) => {
     setSelectedProduct(product);
-    // You can implement a modal or navigate to edit page
-    toast.info('Edit functionality coming soon');
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (formData) => {
+    try {
+      await updateProduct(selectedProduct.id, formData);
+      toast.success('Product updated successfully');
+      setShowEditModal(false);
+      setSelectedProduct(null);
+      // Refresh the products list
+      fetchSellerProducts();
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast.error('Failed to update product');
+    }
   };
 
   const handleDelete = async () => {
@@ -113,6 +129,16 @@ const SellerProducts = () => {
           ))}
         </div>
       )}
+
+      <EditProductModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedProduct(null);
+        }}
+        onSubmit={handleEditSubmit}
+        product={selectedProduct}
+      />
 
       <ConfirmModal
         isOpen={showDeleteModal}

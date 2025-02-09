@@ -82,10 +82,7 @@ export const createProduct = async (productData) => {
 
 export const updateProduct = async (productId, productData) => {
   try {
-    const response = await productApi.put(
-      `${API_ENDPOINTS.PRODUCT_UPDATE}/${productId}`, 
-      productData
-    );
+    const response = await productApi.put(`/product/${productId}`, productData);
     return response.data;
   } catch (error) {
     console.error('Error updating product:', error);
