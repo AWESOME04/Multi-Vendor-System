@@ -1,11 +1,8 @@
+import { useState } from 'react';
 import Banner from "@/components/Home/Banner/Banner";
 import Products from "@/components/Home/Products/Products";
-// import Deals from "@/components/Home/Products/Deals/Deals";
-// import TopProducts from "@/components/Home/Products/TopProducts/TopProducts";
 import Benefits from "@/components/Home/Benefits/Benefits";
-import { useState } from 'react';
-import PlaceholderImg from '../assets/images/placeholder-img.png';
-import Product from '@/components/Product/Product';
+import './HomeView.css';
 
 function HomeView() {
   const [loading, setLoading] = useState(false);
@@ -18,31 +15,15 @@ function HomeView() {
     <div>
       <main>
         <section className="hero-section">
-          <Banner></Banner>
+          <Banner />
         </section>
         <section className="benefits-section"></section>
-        {/* <section className="filters-section">
-          <Filters></Filters>
-        </section> */}
         <section>
-          <Benefits></Benefits>
+          <Benefits />
         </section>
         <section className="products-section">
-          <Products>
-            {({ products }) => products.map((product) => (
-              <Product 
-                key={product.id} 
-                product={product}
-              />
-            ))}
-          </Products>
+          <Products />
         </section>
-        {/* <section className="deals">
-          <Deals></Deals>
-        </section>
-        <section className="top-products">
-          <TopProducts></TopProducts>
-        </section> */}
       </main>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useGlobalContext } from '@/components/GlobalContext/GlobalContext';
+import { useGlobalContext } from '../GlobalContext/GlobalContext';
 import { toast } from 'react-toastify';
 import './Product.css';
 
@@ -10,16 +10,7 @@ const Product = ({ product }) => {
   console.log('Cart items:', store.state.cart);
   console.log('Current product:', product);
   
-  const isInCart = store.state.cart.some(cartItem => {
-    // Log to debug
-    console.log('Comparing:', {
-      cartItemId: cartItem.productId,
-      productId: product.id,
-      match: cartItem.productId === product.id
-    });
-    
-    return String(cartItem.productId) === String(product.id);
-  });
+  const isInCart = store.state.cart.some(item => String(item.productId) === String(product.id));
 
   const handleAddToCart = async (product) => {
     if (isInCart) {
@@ -29,7 +20,7 @@ const Product = ({ product }) => {
     try {
       await store.addToCart({
         ...product,
-        id: product.id // Ensure id is set correctly
+        id: product.id
       });
     } catch (error) {
       toast.error('Failed to add item to cart');
@@ -39,20 +30,20 @@ const Product = ({ product }) => {
   return (
     <div className="product-card">
       <img 
-        src={product.img || product.image} 
-        alt={product.name} 
-        onError={(e) => e.target.src = "https://placehold.co/600x400"}
+        src={product.img || '/placeholder.png'} 
+        alt={product.name}
+        className="product-image"
       />
-      <div className="product-info">
-        <h3>{product.name}</h3>
-        <p>{product.desc}</p>
-        <p className="price">${product.price}</p>
-        <button 
+      <div className="product-details">
+        <h3 className="product-title">{product.name}</h3>
+        <p className="product-description">{product.desc}</p>
+        <span className="product-price">${product.price}</span>
+        <button
+          className="add-to-cart-btn"
           onClick={() => handleAddToCart(product)}
-          className={isInCart ? 'in-cart' : ''}
           disabled={isInCart}
         >
-          {isInCart ? 'Item in Cart' : 'Add to Cart'}
+          {isInCart ? 'In Cart' : 'Add to Cart'}
         </button>
       </div>
     </div>

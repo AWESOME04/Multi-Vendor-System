@@ -1,7 +1,6 @@
 import { useGlobalContext } from '@/components/GlobalContext/GlobalContext';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
-import './Product.css';
 
 const Product = ({ product }) => {
   const { addToCart } = useGlobalContext();

@@ -12,57 +12,81 @@
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 2rem;
+  padding: 2rem;
 }
 
 .product-card {
-  background: white;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #eee;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  transition: transform 0.2s;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
 }
 
 .product-card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .product-image {
   width: 100%;
-  height: 200px;
+  height: 280px;
   object-fit: cover;
+  border-bottom: 1px solid #eee;
 }
 
-.product-info {
+.product-details {
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.product-info h3 {
-  margin: 0 0 0.5rem;
+.product-title {
+  font-size: 1.1rem;
+  font-weight: 600;
   color: #333;
-  font-size: 1.25rem;
+  margin: 0;
 }
 
-.product-info p {
-  margin: 0.5rem 0;
-  color: #666;
-}
-
-.product-type {
-  color: #888;
+.product-description {
   font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .product-price {
-  color: #2c5282;
-  font-weight: bold;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2e7d32;
+  margin-top: 0.5rem;
 }
 
-.product-stock {
-  color: #4a5568;
-  font-size: 0.9rem;
+.add-to-cart-btn {
+  margin-top: auto;
+  padding: 0.75rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background-color: #1565c0;
+}
+
+.add-to-cart-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 .order-button {
@@ -194,4 +218,15 @@ p{
   color: #f44336;
   margin-top: 0.25rem;
   font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    padding: 1rem;
+  }
+
+  .product-image {
+    height: 200px;
+  }
 }

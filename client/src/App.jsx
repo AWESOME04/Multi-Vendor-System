@@ -7,7 +7,6 @@ import CartView from "./views/CartView";
 import OrdersView from "./views/OrdersView";
 import ProfileView from "./views/ProfileView";
 import SellerProducts from "@/components/Seller/SellerProducts";
-import SearchResultsView from './views/SearchResultsView';
 import "react-loading-skeleton/dist/skeleton.css";
 import { GlobalContextProvider } from "@/components/GlobalContext/GlobalContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -29,7 +28,6 @@ function App() {
               <Route path="/orders" element={<OrdersView />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/seller/products" element={<SellerProducts />} />
-              <Route path="/search" element={<SearchResultsView />} />
               <Route path="*" element={<ErrorView />} />
             </Routes>
             <footer>

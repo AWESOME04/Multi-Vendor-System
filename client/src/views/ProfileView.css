@@ -130,13 +130,6 @@
   border-radius: 8px;
 }
 
-.product-card img {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
 .product-details {
   flex: 1;
 }
